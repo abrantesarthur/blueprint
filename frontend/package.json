@@ -1,0 +1,35 @@
+{
+  "name": "@blueprint/frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:down": "bun --env-file=local.env scripts/devDown.ts",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "validate:css-tokens": "bun scripts/validateCssTokens.ts"
+  },
+  "dependencies": {
+    "@blueprint/api-utils": "workspace:*",
+    "@blueprint/enum-utils": "workspace:*",
+    "@blueprint/error-utils": "workspace:*",
+    "@blueprint/time-utils": "workspace:*",
+    "@blueprint/type-utils": "workspace:*",
+    "@sinclair/typebox": "^0.34.0",
+    "@tailwindcss/postcss": "^4.2.2",
+    "lucide-react": "^1.7.0",
+    "next": "16.1.6",
+    "postcss": "^8.5.8",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5"
+  }
+}

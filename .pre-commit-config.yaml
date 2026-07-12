@@ -1,0 +1,88 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint
+        name: Run linter
+        entry: bunx eslint .
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: format
+        name: Check formatting
+        entry: bunx prettier --write --list-different
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json, markdown, yaml, css, html]
+      - id: typecheck
+        name: Check types
+        entry: bunx tsc --noEmit
+        language: system
+        always_run: true
+        pass_filenames: false
+      - id: typecheck-frontend
+        name: Check frontend types
+        entry: bun run --cwd frontend typecheck
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+      - id: db-validate
+        name: Validate DB schema
+        entry: bun run --cwd backend db:validate
+        language: system
+        files: ^backend/src/db/schema/.*\.ts$
+        pass_filenames: false
+      - id: check-migrations
+        name: Validate migrations
+        entry: bun run --cwd backend db:check-migrations
+        language: system
+        files: ^backend/src/db/(schema/.*\.ts|migrations/)
+        pass_filenames: false
+      - id: validate-schemas
+        name: Validate schema naming
+        entry: bun run --cwd backend validate:schemas
+        language: system
+        files: ^backend/src/modules/.*\.ts$
+        pass_filenames: false
+      - id: validate-query-imports
+        name: Validate query imports
+        entry: bun run --cwd backend validate:query-imports
+        language: system
+        files: ^backend/src/db/queries/.*\.ts$
+        pass_filenames: false
+      - id: validate-db-usage
+        name: Validate db client usage
+        entry: bun run --cwd backend validate:db-usage
+        language: system
+        files: ^backend/src/(?!db/).*\.ts$
+        pass_filenames: false
+      - id: validate-sql-usage
+        name: Validate SQL expression usage
+        entry: bun run --cwd backend validate:sql-usage
+        language: system
+        files: ^backend/src/.*\.ts$
+        pass_filenames: false
+      - id: validate-test-only
+        name: Check for .only() in tests
+        entry: bun run --cwd backend validate:test-only
+        language: system
+        files: \.test\.ts$
+        pass_filenames: false
+      - id: validate-css-tokens
+        name: Validate CSS token usage (frontend)
+        entry: bun run --cwd frontend validate:css-tokens
+        language: system
+        files: ^frontend/src/.*\.(tsx?|jsx?)$
+        pass_filenames: false
+      - id: knip
+        name: Detect dead code
+        entry: bun run knip
+        language: system
+        always_run: true
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.5.0
+    hooks:
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-case-conflict
+      - id: trailing-whitespace
+        exclude: '\.snap$'

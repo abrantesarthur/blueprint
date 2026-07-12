@@ -1,0 +1,19 @@
+{
+    "prettier.prettierPath": "./node_modules/prettier",
+    "window.commandCenter": true,
+    "editor.fontSize": 16,
+    "terminal.integrated.fontSize": 16,
+    "workbench.activityBar.orientation": "vertical",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+    "eslint.workingDirectories": [{ "mode": "auto" }],
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "terminal.integrated.gpuAcceleration": "off",
+    "terminal.integrated.scrollback": 10000
+}

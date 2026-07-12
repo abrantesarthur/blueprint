@@ -1,0 +1,52 @@
+# Logs
+logs
+*.log
+
+# Compiled binary addons
+build/
+dist/
+out/
+
+# Dependency directories
+node_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Optional REPL history
+.node_repl_history
+
+# dotenv environment variable files
+.env
+.env.*
+!.env.example
+
+# Bun
+bin/
+bun.lockb
+.bun/
+
+# OS / Editor
+.DS_Store
+.idea/
+
+
+## Claude mcp artifacts
+.playwright-mcp
+/*.png
+
+/PLAN-*
+/REVIEW-*
+/TASK-STATUS-*
+/claude-tasks.json
+/claude-progress.txt
+/scan-results.json

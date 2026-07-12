@@ -1,0 +1,17 @@
+{
+  "name": "@blueprint/bitwarden-utils",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0"
+  },
+  "dependencies": {
+    "@bitwarden/sdk-wasm": "0.1.0"
+  }
+}

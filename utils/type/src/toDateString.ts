@@ -1,0 +1,11 @@
+/**
+ * Converts a Date to a YYYY-MM-DD string using local date components.
+ * @param date - The date to convert.
+ * @returns The date string in YYYY-MM-DD format.
+ */
+export function toDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

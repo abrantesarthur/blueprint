@@ -1,0 +1,30 @@
+domain: example.com # <replace-me: your apex domain>
+pulumi:
+  enabled: true
+  projectName: "blueprint" # <replace-me: your project name>
+  command: up
+  cloudflareAccountId: <replace-me-cloudflare-account-id>
+  sshPort: 22
+  database:
+    enabled: true
+  stacks:
+    prod:
+      servers:
+        - roles: [backend]
+ansible:
+  enabled: true
+  backend:
+    image: ghcr.io/your-org/backend # <replace-me: your container image>
+    tag: latest
+    port: 3000
+    env:
+      RUNTIME_ENVIRONMENT: production
+      BWS_ORGANIZATION_ID: <replace-me-bws-organization-id>
+    secretEnv:
+      BWS_ACCESS_TOKEN: APP_BWS_ACCESS_TOKEN
+    migrate:
+      command: ["migrate"]
+secrets:
+  provider: bws
+  projectId: "<replace-me-bws-infra-project-id>"
+  requiredVars: []

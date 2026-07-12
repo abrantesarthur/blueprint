@@ -1,0 +1,389 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import "tailwindcss";
+
+/* Exclude build/validator scripts — they contain literal class-name
+ * examples in comments that Tailwind would otherwise try to generate. */
+@source not "../../scripts";
+
+@theme {
+  /* Colors — Brand */
+  --color-primary: #f0b429;
+  --color-primary-hover: #d9a325;
+  --color-deep-blue: #1b3a5c;
+  --color-light-blue: #9bb3ca;
+  --color-muted-blue: #7a9ab8;
+  --color-green: #008a05;
+  --color-green-dark: #1b6b26;
+  --color-green-tint: #e6f4e8;
+  --color-warning: #e07912;
+  --color-warning-tint: #fff3e0;
+  --color-red: #d93025;
+  --color-red-dark: #a8221a;
+  --color-red-tint: #fdecea;
+
+  /* Colors - Grey */
+  --color-very-light-grey: #eeeeee;
+  --color-light-grey: #dddddd;
+  --color-mid-grey: #cccccc;
+  --color-dark-grey: #bbbbbb;
+  --color-very-dark-grey: #aaaaaa;
+  --color-neutral-tint: #f2f2f2;
+
+  /* Colors — Inactive / Disabled states */
+  --color-inactive: #b0b0b0;
+  --color-disabled-bg: #e0e0e0;
+  --color-disabled-text: #9e9e9e;
+
+  /* Colors — Background / Foreground */
+  --color-background: #ffffff;
+  --color-background-muted: #f7f7f7;
+  --color-foreground: #222222;
+  --color-foreground-secondary: #6a6a6a;
+  --color-foreground-tertiary: #717171;
+
+  /* Colors — Empty state illustration */
+  --color-empty-state-bg: #fff8e7;
+  --color-empty-state-border: #f5e4b6;
+
+  /* Colors — Overlay */
+  --color-overlay: rgba(0, 0, 0, 0.1);
+  --color-hero-gradient-mobile: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 35%,
+    rgba(0, 0, 0, 0.55) 65%,
+    rgba(0, 0, 0, 0.78) 100%
+  );
+  --color-hero-gradient-tablet: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.4) 24.27%,
+    rgba(0, 0, 0, 0) 44.88%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --color-hero-gradient-desktop: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.7) 0%,
+    rgba(0, 0, 0, 0.45) 24.27%,
+    rgba(0, 0, 0, 0) 48.18%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  --blur-overlay: 1px;
+
+  /** Border radius sizes */
+  --radius-full: 100px;
+  --radius-xl: 50px;
+  --radius-lg: 24px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+
+  /** Border width sizes */
+  --border-width-hairline: 0.5px;
+  --border-width-thick: 1px;
+
+  /** Spacing sizes */
+  --spacing-hairline: 0.5px;
+  --spacing-thick: 1px;
+
+  /* Padding scale — used by p/px/py/pt/pb/pl/pr utilities via tokens */
+  --spacing-none: 0;
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 40px;
+  --spacing-4xl: 48px;
+  --spacing-5xl: 80px;
+  --spacing-pill: 10px;
+  --spacing-row-y: 14px;
+
+  /* Layout heights */
+  --height-bottom-nav: 53px;
+  --height-cta-bar: 132px;
+
+  /* Bottom spacing applied below the last scrollable element on mobile so the
+   * fixed bottom CTA bar does not clip page content even when scrolled to the
+   * very end. */
+  --spacing-cta-clearance: 132px;
+
+  /* Page gutters — horizontal whitespace between content and viewport edge */
+  --spacing-page-gutter-xs: 8px;
+  --spacing-page-gutter-sm: 12px;
+  --spacing-page-gutter: 24px;
+  --spacing-page-gutter-md: 32px;
+  --spacing-page-gutter-lg: 48px;
+  --spacing-page-gutter-xl: 60px;
+  --spacing-page-gutter-xxl: 80px;
+
+  /* Elevation */
+  --shadow-elevation0: inset 0 0 0 0.5px #dddddd;
+  --shadow-elevation1:
+    0 0 0 0.5px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.16);
+  --shadow-elevation2:
+    0 0 0 0.5px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-elevation3:
+    0 0 0 0.5px rgba(0, 0, 0, 0.02), 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-elevation4:
+    0 0 0 0.5px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.08),
+    0 12px 30px rgba(0, 0, 0, 0.12);
+  --shadow-elevation-top:
+    0 0 0 0.5px rgba(0, 0, 0, 0.02), 0 -2px 6px rgba(0, 0, 0, 0.04),
+    0 -4px 8px rgba(0, 0, 0, 0.1);
+
+  /* Font */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Font sizes */
+  --text-caption: 8px;
+  --text-caption--line-height: 12px;
+  --text-body-xs: 10px;
+  --text-body-xs--line-height: 16px;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-title-sm: 20px;
+  --text-title-sm--line-height: 28px;
+  --text-title-md: 24px;
+  --text-title-md--line-height: 32px;
+  --text-title-lg: 32px;
+  --text-title-lg--line-height: 40px;
+  --text-display-sm: 40px;
+  --text-display-sm--line-height: 48px;
+  --text-display-md: 52px;
+  --text-display-md--line-height: 60px;
+  --text-display-lg: 56px;
+  --text-display-lg--line-height: 64px;
+
+  /* Breakpoints */
+  --breakpoint-sm: 390px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+
+  /* Motion */
+  --animate-duration-enter: 300ms;
+  --animate-duration-exit: 300ms;
+  --animate-ease-enter: cubic-bezier(0.22, 1, 0.4, 1);
+  --animate-ease-exit: cubic-bezier(0.22, 1, 0.5, 1);
+  --animate-opacity-from: 0;
+  --animate-opacity-to: 1;
+  --animate-translate-y-from: 100%;
+  --animate-translate-y-to: 0%;
+  --animate-translate-x-from: 100%;
+  --animate-translate-x-to: 0%;
+}
+
+/* Global resets */
+html,
+body {
+  font-family: var(--font-sans);
+  color: var(--color-foreground);
+  background-color: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/** Animations */
+.bottom-sheet-backdrop,
+.bottom-sheet-panel {
+  will-change: opacity, transform;
+}
+
+.bottom-sheet-backdrop-enter {
+  animation: bottom-sheet-backdrop-in var(--animate-duration-enter)
+    var(--animate-ease-enter) both;
+}
+
+.bottom-sheet-backdrop-open {
+  opacity: var(--animate-opacity-to);
+}
+
+/* Exit animations keep the sheet mounted long enough to slide out of view. */
+.bottom-sheet-backdrop-exit {
+  animation: bottom-sheet-backdrop-out var(--animate-duration-exit)
+    var(--animate-ease-exit) both;
+}
+
+.bottom-sheet-panel-enter {
+  animation: bottom-sheet-panel-in var(--animate-duration-enter)
+    var(--animate-ease-enter) both;
+}
+
+.bottom-sheet-panel-open {
+  opacity: var(--animate-opacity-to);
+  transform: translateY(var(--animate-translate-y-to));
+}
+
+.bottom-sheet-panel-exit {
+  animation: bottom-sheet-panel-out var(--animate-duration-exit)
+    var(--animate-ease-exit) both;
+}
+
+@keyframes bottom-sheet-backdrop-in {
+  from {
+    opacity: var(--animate-opacity-from);
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+  }
+}
+
+@keyframes bottom-sheet-backdrop-out {
+  from {
+    opacity: var(--animate-opacity-to);
+  }
+
+  to {
+    opacity: var(--animate-opacity-from);
+  }
+}
+
+@keyframes bottom-sheet-panel-in {
+  from {
+    opacity: var(--animate-opacity-to);
+    transform: translateY(var(--animate-translate-y-from));
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+    transform: translateY(var(--animate-translate-y-to));
+  }
+}
+
+@keyframes bottom-sheet-panel-out {
+  from {
+    opacity: var(--animate-opacity-to);
+    transform: translateY(var(--animate-translate-y-to));
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+    transform: translateY(var(--animate-translate-y-from));
+  }
+}
+
+/** Side sheet — slides in from the right edge. Backdrop fade is identical to bottom sheet but kept under separate selectors for symmetry. */
+.side-sheet-backdrop,
+.side-sheet-panel {
+  will-change: opacity, transform;
+}
+
+.side-sheet-backdrop-enter {
+  animation: side-sheet-backdrop-in var(--animate-duration-enter)
+    var(--animate-ease-enter) both;
+}
+
+.side-sheet-backdrop-open {
+  opacity: var(--animate-opacity-to);
+}
+
+.side-sheet-backdrop-exit {
+  animation: side-sheet-backdrop-out var(--animate-duration-exit)
+    var(--animate-ease-exit) both;
+}
+
+.side-sheet-panel-enter {
+  animation: side-sheet-panel-in var(--animate-duration-enter)
+    var(--animate-ease-enter) both;
+}
+
+.side-sheet-panel-open {
+  opacity: var(--animate-opacity-to);
+  transform: translateX(var(--animate-translate-x-to));
+}
+
+.side-sheet-panel-exit {
+  animation: side-sheet-panel-out var(--animate-duration-exit)
+    var(--animate-ease-exit) both;
+}
+
+@keyframes side-sheet-backdrop-in {
+  from {
+    opacity: var(--animate-opacity-from);
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+  }
+}
+
+@keyframes side-sheet-backdrop-out {
+  from {
+    opacity: var(--animate-opacity-to);
+  }
+
+  to {
+    opacity: var(--animate-opacity-from);
+  }
+}
+
+@keyframes side-sheet-panel-in {
+  from {
+    opacity: var(--animate-opacity-to);
+    transform: translateX(var(--animate-translate-x-from));
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+    transform: translateX(var(--animate-translate-x-to));
+  }
+}
+
+@keyframes side-sheet-panel-out {
+  from {
+    opacity: var(--animate-opacity-to);
+    transform: translateX(var(--animate-translate-x-to));
+  }
+
+  to {
+    opacity: var(--animate-opacity-to);
+    transform: translateX(var(--animate-translate-x-from));
+  }
+}
+
+/** Collapsible section — uses the grid-template-rows trick for smooth height animation. */
+@layer components {
+  .collapsible {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--animate-duration-enter)
+      var(--animate-ease-enter);
+  }
+
+  .collapsible[data-collapsed="true"] {
+    grid-template-rows: 0fr;
+  }
+
+  .collapsible > * {
+    overflow: hidden;
+    min-height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet-backdrop-enter,
+  .bottom-sheet-backdrop-open,
+  .bottom-sheet-backdrop-exit,
+  .bottom-sheet-panel-enter,
+  .bottom-sheet-panel-open,
+  .bottom-sheet-panel-exit,
+  .side-sheet-backdrop-enter,
+  .side-sheet-backdrop-open,
+  .side-sheet-backdrop-exit,
+  .side-sheet-panel-enter,
+  .side-sheet-panel-open,
+  .side-sheet-panel-exit {
+    animation-duration: 1ms;
+  }
+
+  .collapsible {
+    transition-duration: 1ms;
+  }
+}

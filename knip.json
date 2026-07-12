@@ -1,0 +1,57 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignore": [".claude/**", "frontend/**"],
+  "ignoreDependencies": ["estree", "@arthuroabrantes/maestro"],
+  "ignoreBinaries": ["pkill"],
+  "workspaces": {
+    "backend": {
+      "entry": [
+        "src/index.ts",
+        "src/scripts/*.ts",
+        "src/tests/preload.ts",
+        "src/tests/setup.ts",
+        "src/shared/constants/*.ts",
+        "src/db/schema/*.ts",
+        "src/integrations/*/index.ts",
+        "src/**/__tests__/**/*.test.ts"
+      ],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/date": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/async-arg": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/crypto": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/script": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/time": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/type": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/api": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/enum": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "utils/error": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

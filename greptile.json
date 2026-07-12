@@ -1,0 +1,65 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax", "style", "info"],
+  "ignorePatterns": "*.generated.*\n**/node_modules/**\n*.config.js\n*.config.ts\npackage-lock.json\n*.md\nbun.lock\nbun.lockb\nbackend/src/db/migrations/**\n*.tsbuildinfo\ndist/**\nbuild/**\ncoverage/**\n.vscode/**\ntsconfig*.json\ndrizzle.config.ts\n.github/**",
+  "triggerOnUpdates": false,
+  "customContext": {
+    "rules": [
+      {
+        "rule": "JSDoc is required on interfaces, types, functions, and interface fields",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "Functions must have explicit TypeScript return types",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "Function parameters must have explicit type annotations",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "Use @blueprint/time-utils constants (ONE_MINUTE, ONE_HOUR, ONE_DAY, etc.) for time durations in milliseconds instead of magic numbers",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "TypeBox request body schemas should follow naming convention: <entity><action>Body (e.g., otpRequestBody, userCreateBody)",
+        "scope": ["backend/src/modules/**/model.ts"]
+      },
+      {
+        "rule": "TypeBox query parameter schemas should follow naming convention: <entity><action>Query (e.g., userListQuery)",
+        "scope": ["backend/src/modules/**/model.ts"]
+      },
+      {
+        "rule": "TypeBox response schemas should follow naming convention: <entity><action>Response (e.g., otpRequestResponse, userResponse)",
+        "scope": ["backend/src/modules/**/model.ts"]
+      },
+      {
+        "rule": "Database queries should be centralized in service.ts files as reusable helper functions, not written inline in routes",
+        "scope": ["backend/src/modules/**/index.ts"]
+      },
+      {
+        "rule": "Use custom error classes from shared/utils/errors.ts (AppError, UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError, ConflictError) instead of throwing generic errors",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "Module structure: index.ts for Elysia routes, model.ts for TypeBox schemas, service.ts for business logic and database queries",
+        "scope": ["backend/src/modules/**/*.ts"]
+      },
+      {
+        "rule": "Use Promise.all with map for parallel async operations instead of sequential awaits when operations are independent",
+        "scope": ["backend/src/**/*.ts"]
+      },
+      {
+        "rule": "Service functions should use a single object parameter with named properties instead of positional arguments (e.g., updateUser({ userId, user, tx }) instead of updateUser(userId, user, tx))",
+        "scope": ["backend/src/**/*.ts"]
+      }
+    ],
+    "files": [
+      {
+        "path": "CLAUDE.md",
+        "description": "Company coding standards followed by claude coding agent",
+        "scope": ["*"]
+      }
+    ]
+  }
+}

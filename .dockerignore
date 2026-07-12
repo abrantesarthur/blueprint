@@ -1,0 +1,25 @@
+# Dependencies (reinstalled inside the image via `bun install --frozen-lockfile`)
+node_modules
+**/node_modules
+
+# Version control and CI
+.git
+.github
+
+# Build artifacts
+**/dist
+**/.next
+**/*.tsbuildinfo
+
+# Local environment and secrets
+*.env
+**/*.env
+local.env
+
+# Tooling / editor / agent files
+.claude
+.vscode
+.idea
+
+# Docs and specs
+**/*.md

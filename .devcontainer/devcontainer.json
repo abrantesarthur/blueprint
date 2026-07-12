@@ -1,0 +1,34 @@
+{
+  "name": "Blueprint",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  // Mount the project into /workspace.
+  "workspaceFolder": "/workspace",
+  // Mirror the host folder into /workspace with a bind mount for live editing.
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "mounts": [
+    // Allow Docker CLI inside the container to talk to the host's docker daemon.
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+  "runArgs": [
+    // Share the host’s network namespace, meaning devcontainer's localhost = host's localhost
+    "--network=host"
+  ],
+  // allow any user inside the container to reach the host's docker socket.
+  // this is needed so the docker-cli in the container can reach the host's docker daemon.
+  // this is safe for local development.
+  "postStartCommand": "sudo chmod 666 /var/run/docker.sock",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anysphere.cpptools", // C/C++ IntelliSense
+        "esbenp.prettier-vscode", // Code formatting
+        "openai.chatgpt", // OpenAI's codex
+        "dbaeumer.vscode-eslint", // Microsoft's ESLint
+        "esbenp.prettier-vscode" // Prettier
+      ]
+    }
+  }
+}
