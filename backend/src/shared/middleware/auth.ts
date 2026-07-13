@@ -2,7 +2,7 @@ import { Elysia } from "elysia";
 
 import { findOneUser } from "../../db";
 import type { AuthUser } from "../types";
-import { ForbiddenError, UnauthorizedError } from "../utils/errors";
+import { UnauthorizedError } from "../utils/errors";
 import { verifyAccessToken } from "../utils/jwt";
 
 /**
@@ -33,7 +33,7 @@ export const authMiddleware = new Elysia({ name: "auth" })
       }
 
       const user = await findOneUser({
-        attributes: ["id", "email", "firstName", "lastName", "role"],
+        attributes: ["id", "email", "firstName", "lastName"],
         where: { id: payload.id },
         require: false,
       });
@@ -44,16 +44,4 @@ export const authMiddleware = new Elysia({ name: "auth" })
 
       return { user };
     },
-  )
-  .macro({
-    requireAdmin: {
-      beforeHandle({ user }: { user?: AuthUser }): void {
-        if (!user) {
-          throw new UnauthorizedError("Authentication required");
-        }
-        if (user.role !== "admin") {
-          throw new ForbiddenError("Admin access required");
-        }
-      },
-    },
-  });
+  );

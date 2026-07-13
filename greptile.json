@@ -22,7 +22,7 @@
         "scope": ["backend/src/**/*.ts"]
       },
       {
-        "rule": "TypeBox request body schemas should follow naming convention: <entity><action>Body (e.g., otpRequestBody, userCreateBody)",
+        "rule": "TypeBox request body schemas should follow naming convention: <entity><action>Body (e.g., userCreateBody, userUpdateBody)",
         "scope": ["backend/src/modules/**/model.ts"]
       },
       {
@@ -30,7 +30,7 @@
         "scope": ["backend/src/modules/**/model.ts"]
       },
       {
-        "rule": "TypeBox response schemas should follow naming convention: <entity><action>Response (e.g., otpRequestResponse, userResponse)",
+        "rule": "TypeBox response schemas should follow naming convention: <entity><action>Response (e.g., userResponse, userListResponse)",
         "scope": ["backend/src/modules/**/model.ts"]
       },
       {

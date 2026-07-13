@@ -32,13 +32,6 @@ const envConfig = {
     sensitive: true,
     minLength: 32,
   }),
-  JWT_REFRESH_SECRET: AsyncArg.string({
-    bwsName: "JWT_REFRESH_SECRET",
-    description: "JWT refresh token signing secret",
-    sensitive: true,
-    minLength: 32,
-  }),
-
   // Runtime
   RUNTIME_ENVIRONMENT: AsyncArg.string({
     envName: "RUNTIME_ENVIRONMENT",
@@ -63,12 +56,6 @@ const envConfig = {
   }),
 
   // Local development
-  MOCK_OTP: AsyncArg.boolean({
-    envName: "MOCK_OTP",
-    description:
-      "When true, OTP requests skip real OTP delivery and the OTP is forced to '000000'. Never enable in production.",
-    default: false,
-  }),
   CLOUDFLARE_TUNNEL_TOKEN: AsyncArg.string({
     bwsName: "CLOUDFLARE_TUNNEL_TOKEN",
     description:
@@ -88,19 +75,12 @@ const envConfig = {
 interface Env extends DbEnv {
   /** JWT signing secret. */
   JWT_SECRET: Secret<string>;
-  /** JWT refresh token signing secret. */
-  JWT_REFRESH_SECRET: Secret<string>;
   /** Runtime environment (e.g. development, production). */
   RUNTIME_ENVIRONMENT: string;
   /** Server port. */
   PORT: number;
   /** Whether to trust proxy headers for client IP extraction. */
   TRUST_PROXY: boolean;
-  /**
-   * When true, OTP requests skip real OTP delivery and the verification
-   * code is forced to a fixed value ("000000"). Never enable in production.
-   */
-  MOCK_OTP: boolean;
   /**
    * Cloudflare named-tunnel token for `bun run dev --tunnel` (dev-only).
    * Empty when no named tunnel is configured for the environment.
@@ -115,31 +95,6 @@ interface Env extends DbEnv {
 
 /** Cached promise so concurrent/repeated calls share a single Bitwarden fetch. */
 let pending: Promise<Env> | undefined;
-
-/**
- * Guards against running with the mock OTP delivery flag enabled in production.
- * The mock skips the real OTP send and forces the code to a fixed value, so
- * leaving it enabled in production would let anyone authenticate as anyone.
- * @param params - The validation inputs.
- * @param params.mockEnabled - Whether `MOCK_OTP` is enabled.
- * @param params.runtimeEnvironment - The current `RUNTIME_ENVIRONMENT` value.
- * @throws Error when the mock is enabled and `RUNTIME_ENVIRONMENT` is "production".
- */
-export function assertMockOtpNotInProduction({
-  mockEnabled,
-  runtimeEnvironment,
-}: {
-  /** Whether the mock OTP delivery is enabled. */
-  mockEnabled: boolean;
-  /** The current value of `RUNTIME_ENVIRONMENT`. */
-  runtimeEnvironment: string;
-}): void {
-  if (mockEnabled && runtimeEnvironment === "production") {
-    throw new Error(
-      "MOCK_OTP must not be enabled when RUNTIME_ENVIRONMENT=production: it skips the real OTP send and forces a fixed code.",
-    );
-  }
-}
 
 /**
  * Fetches all environment configuration values (internal, not cached).
@@ -158,20 +113,13 @@ async function doLoadEnv(): Promise<Env> {
   const result: Env = {
     ...dbEnv,
     JWT_SECRET: await envConfig.JWT_SECRET.fetch(),
-    JWT_REFRESH_SECRET: await envConfig.JWT_REFRESH_SECRET.fetch(),
     RUNTIME_ENVIRONMENT: await envConfig.RUNTIME_ENVIRONMENT.fetch(),
     PORT: await envConfig.PORT.fetch(),
     TRUST_PROXY: await envConfig.TRUST_PROXY.fetch(),
-    MOCK_OTP: await envConfig.MOCK_OTP.fetch(),
     CLOUDFLARE_TUNNEL_TOKEN: await envConfig.CLOUDFLARE_TUNNEL_TOKEN.fetch(),
     CLOUDFLARE_TUNNEL_HOSTNAME:
       await envConfig.CLOUDFLARE_TUNNEL_HOSTNAME.fetch(),
   };
-
-  assertMockOtpNotInProduction({
-    mockEnabled: result.MOCK_OTP,
-    runtimeEnvironment: result.RUNTIME_ENVIRONMENT,
-  });
 
   // Clear Bitwarden fetcher cache to avoid keeping unnecessary data in memory
   AsyncArg.cleanup();

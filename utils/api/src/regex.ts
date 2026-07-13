@@ -4,13 +4,6 @@ export { ISO_DATE_PATTERN, TIME_PATTERN } from "@blueprint/date-utils";
 export const NO_DIGITS_PATTERN = "^[^\\d]*$";
 
 /**
- * Regex pattern for E.164 phone numbers.
- * Format: `+` followed by a country code and subscriber number (8-15 digits total).
- * Example: +15551234567
- */
-export const E164_PHONE_PATTERN = "^\\+[1-9][0-9]{7,14}$";
-
-/**
  * Regex pattern that anchors the leading `YYYY-MM-DDTHH:MM` of an ISO 8601
  * date-time. Deliberately does NOT terminate the expression so the trailing
  * `:SS.sssZ` (or timezone offset) produced by `Date.toISOString()` is allowed

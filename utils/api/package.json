@@ -7,7 +7,6 @@
   "types": "src/index.ts",
   "dependencies": {
     "@blueprint/date-utils": "workspace:*",
-    "@blueprint/enum-utils": "workspace:*",
     "@sinclair/typebox": "^0.34.0"
   }
 }

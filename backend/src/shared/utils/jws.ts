@@ -1,9 +1,9 @@
 /** Payload structure for JWT tokens used in authentication. */
 export interface JwtPayload {
-  /** The unique identifier of the authenticated user (phone or userId). */
+  /** The unique identifier of the authenticated user. */
   id: string;
   /** The type of token - access for short-lived API auth, refresh for obtaining new tokens. */
-  type: "access" | "refresh" | "registration";
+  type: "access" | "refresh";
   /** Issued at timestamp in seconds since Unix epoch. */
   iat: number;
   /** Expiration timestamp in seconds since Unix epoch. */
@@ -81,7 +81,7 @@ async function verifySignature(
 
 /**
  * Generates a JWT token with the specified parameters.
- * Internal function - use generateAccessToken, generateRefreshToken, or generateRegistrationToken instead.
+ * Internal function - use generateAccessToken instead.
  * @param id - The unique identifier of the user to generate token for.
  * @param type - The type of token to generate.
  * @param expiresIn - The token expiry duration in seconds.
@@ -90,7 +90,7 @@ async function verifySignature(
  */
 export async function generateToken(
   id: string,
-  type: "access" | "refresh" | "registration",
+  type: "access" | "refresh",
   expiresIn: number,
   secret: string,
 ): Promise<{ token: string; expiresIn: number }> {
@@ -113,7 +113,7 @@ export async function generateToken(
 
 /**
  * Verifies a JWT token and extracts its payload.
- * Internal function - use verifyAccessToken or verifyRefreshToken instead.
+ * Internal function - use verifyAccessToken instead.
  * @param token - The JWT token to verify.
  * @param secret - The secret key used for verification.
  * @param expectedType - The expected token type (access or refresh).
@@ -122,7 +122,7 @@ export async function generateToken(
 export async function verifyToken(
   token: string,
   secret: string,
-  expectedType: "access" | "refresh" | "registration",
+  expectedType: "access" | "refresh",
 ): Promise<JwtPayload | null> {
   try {
     const [header, payload, signature] = token.split(".");

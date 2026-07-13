@@ -1,6 +1,7 @@
 import type { AuthUser } from "@blueprint/api-utils";
 import { Elysia } from "elysia";
 
+import type { User } from "../../db";
 import { authMiddleware } from "../../shared/middleware/auth";
 import {
   RATE_LIMITS,
@@ -8,30 +9,17 @@ import {
   standardRateLimitPlugin,
 } from "../../shared/middleware/rateLimit";
 import type { SuccessResponse } from "../shared/schema";
-import {
-  type UserCreateBody,
-  type UserCreateResponse,
-  type UserPhoneUpdateBody,
-  type UserResponse,
-  usersModel,
-  type UserUpdateBody,
-} from "./model";
-import {
-  createUser,
-  deleteUserAccount,
-  getUser,
-  updateUser,
-  updateUserPhone,
-} from "./service";
+import { type UserCreateBody, usersModel, type UserUpdateBody } from "./model";
+import { createUser, deleteUserAccount, getUser, updateUser } from "./service";
 
 // Framework-agnostic Controller
 abstract class UsersController {
   /**
-   * Creates a new user account using a registration token from OTP verification.
-   * @param data - The registration token and profile fields.
-   * @returns The created user and auth tokens.
+   * Creates a new user account.
+   * @param data - The profile fields for the new user.
+   * @returns The created user record.
    */
-  static create(data: UserCreateBody): Promise<UserCreateResponse> {
+  static create(data: UserCreateBody): Promise<User> {
     return createUser(data);
   }
 
@@ -41,21 +29,8 @@ abstract class UsersController {
    * @param body - The profile fields to patch.
    * @returns The updated user record.
    */
-  static update(userId: string, body: UserUpdateBody): Promise<UserResponse> {
+  static update(userId: string, body: UserUpdateBody): Promise<User> {
     return updateUser({ userId, body });
-  }
-
-  /**
-   * Updates the authenticated user's phone after verifying OTP.
-   * @param userId - The authenticated caller's user id.
-   * @param body - The new phone, OTP code, and request token.
-   * @returns The updated user record.
-   */
-  static updatePhone(
-    userId: string,
-    body: UserPhoneUpdateBody,
-  ): Promise<UserResponse> {
-    return updateUserPhone({ userId, body });
   }
 
   /**
@@ -64,7 +39,7 @@ abstract class UsersController {
    * @param authUser - The authenticated caller.
    * @returns The user record.
    */
-  static getUser(userId: string, authUser: AuthUser): Promise<UserResponse> {
+  static getUser(userId: string, authUser: AuthUser): Promise<User> {
     return getUser({ userId, authUser });
   }
 
@@ -82,15 +57,13 @@ abstract class UsersController {
 
 export const usersModule = new Elysia({ prefix: "/users" })
   .use(usersModel)
-  // Public registration route — registration-token auth, not JWT
+  // Public registration route
   .post("/", ({ body }) => UsersController.create(body), {
     beforeHandle: rateLimitHook(RATE_LIMITS.CREATE_USER),
     body: "userCreateBody",
-    response: "userCreateResponse",
+    response: "userResponse",
     detail: {
       summary: "Create a new user account",
-      description:
-        "Creates a user using a registration token obtained from OTP verification.",
       tags: ["Users"],
     },
   })
@@ -105,20 +78,6 @@ export const usersModule = new Elysia({ prefix: "/users" })
       tags: ["Users"],
     },
   })
-  .patch(
-    "/me/phone",
-    ({ user, body }) => UsersController.updatePhone(user.id, body),
-    {
-      body: "userPhoneUpdateBody",
-      response: "userResponse",
-      detail: {
-        summary: "Update current user's phone after OTP verification",
-        description:
-          "Validates an OTP requested for the new phone (single-use), then updates the authenticated user's phone and marks it verified.",
-        tags: ["Users"],
-      },
-    },
-  )
   .delete("/me", ({ user }) => UsersController.deleteAccount(user.id), {
     response: "successResponse",
     detail: {
@@ -132,7 +91,7 @@ export const usersModule = new Elysia({ prefix: "/users" })
     detail: {
       summary: "Get a user profile by id",
       description:
-        "Returns the requested user's full record. Only the owner or an admin may access this data.",
+        "Returns the requested user's profile. Only the owner may access this data.",
       tags: ["Users"],
     },
   });

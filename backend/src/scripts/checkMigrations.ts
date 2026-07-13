@@ -318,13 +318,13 @@ async function findLatestSnapshot(): Promise<string | null> {
 
 /**
  * Load and parse a snapshot JSON file.
- * @param snapshotPath - Path to the snapshot file.
+ * @param snapshotFile - Path to the snapshot file.
  * @returns Parsed snapshot object.
  */
 async function loadSnapshot(
-  snapshotPath: string,
+  snapshotFile: string,
 ): Promise<SnapshotForComparison> {
-  const content = await Bun.file(snapshotPath).text();
+  const content = await Bun.file(snapshotFile).text();
   return JSON.parse(content) as SnapshotForComparison;
 }
 
@@ -484,14 +484,14 @@ function findDifferences(
  * @returns Array of drift descriptions, empty if schema is in sync.
  */
 async function checkSchemaDrift(): Promise<string[]> {
-  const latestSnapshotPath = await findLatestSnapshot();
-  if (!latestSnapshotPath) {
+  const latestSnapshotFile = await findLatestSnapshot();
+  if (!latestSnapshotFile) {
     return ["No migration snapshots found. Run 'bun db:generate' first."];
   }
 
-  console.log(`  Latest snapshot: ${path.basename(latestSnapshotPath)}`);
+  console.log(`  Latest snapshot: ${path.basename(latestSnapshotFile)}`);
 
-  const prevSnapshot = await loadSnapshot(latestSnapshotPath);
+  const prevSnapshot = await loadSnapshot(latestSnapshotFile);
 
   const currentSnapshot = generateDrizzleJson(
     schema as unknown as Record<string, unknown>,

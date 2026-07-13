@@ -12,7 +12,7 @@ export type NestedRow = Record<string, unknown>;
 /**
  * Converts a plural table name to a singular relationship name.
  * Handles common English pluralization patterns used in the project's table names:
- * `users` → `user`, `otp_codes` → `otp_code`, `categories` → `category`.
+ * `users` → `user`, `categories` → `category`.
  * @param tableName - The plural table name.
  * @returns The singular form.
  */

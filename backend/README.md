@@ -1,6 +1,6 @@
 # Blueprint Backend
 
-Backend API workspace for the Blueprint monorepo. Ships with an example vertical slice — phone-OTP authentication (`auth` module) and profile management (`users` module) — that demonstrates the schema → queries → module → fixtures → seeders → tests pattern.
+Backend API workspace for the Blueprint monorepo. Ships with an example vertical slice — a minimal `users` CRUD module — that demonstrates the schema → queries → module → fixtures → seeders → tests pattern.
 
 ## Getting Started
 
@@ -48,7 +48,6 @@ value comes from **exactly one** source:
 | `RUNTIME_ENVIRONMENT` | string  | yes      | —         | Runtime environment (e.g. `development`, `production`).                                                              |
 | `PORT`                | number  | yes      | —         | Port the server listens on (1000–65535).                                                                             |
 | `TRUST_PROXY`         | boolean | no       | `false`   | Trust `x-forwarded-for` for client IP (rate limiting).                                                               |
-| `MOCK_OTP`            | boolean | no       | `false`   | Dev-only OTP bypass: skips real delivery and forces code `000000`. Startup throws if `true` in production.           |
 
 `DATABASE_URL` is **not** an input — it is constructed from the `POSTGRES_*` parts.
 
@@ -66,13 +65,5 @@ a publicly-trusted certificate, so `require` works without a custom CA.
 
 ### Resolved from Bitwarden — do NOT set as environment variables
 
-`POSTGRES_DB`, `POSTGRES_USER`, `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-`CLOUDFLARE_TUNNEL_TOKEN`, and `CLOUDFLARE_TUNNEL_HOSTNAME`.
-
-## OTP Delivery
-
-The `auth` module delivers OTP codes through the stub integration in
-`src/integrations/otp/` (`sendOtp`). In development the code is logged to the
-console; in production the stub throws until you plug in a real provider
-(email/SMS). Set `MOCK_OTP=true` locally to skip delivery entirely and
-accept the fixed code `000000`.
+`POSTGRES_DB`, `POSTGRES_USER`, `JWT_SECRET`, `CLOUDFLARE_TUNNEL_TOKEN`, and
+`CLOUDFLARE_TUNNEL_HOSTNAME`.

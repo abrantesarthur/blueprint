@@ -1,18 +1,10 @@
-import { E164_PHONE_PATTERN, NO_DIGITS_PATTERN } from "@blueprint/api-utils";
+import { NO_DIGITS_PATTERN } from "@blueprint/api-utils";
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  check,
-  pgTable,
-  timestamp,
-  uuid,
-  varchar,
-} from "drizzle-orm/pg-core";
+import { check, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { roleEnum } from "./enums";
 import { timestamps } from "./helpers";
 
-/** Users table - stores user and admin accounts. */
+/** Users table - stores user accounts. */
 export const users = pgTable(
   "users",
   {
@@ -20,10 +12,6 @@ export const users = pgTable(
     email: varchar({ length: 255 }).unique(),
     firstName: varchar({ length: 100 }).notNull(),
     lastName: varchar({ length: 100 }).notNull(),
-    phone: varchar({ length: 16 }).unique().notNull(),
-    phoneVerified: boolean().default(false).notNull(),
-    role: roleEnum().default("user").notNull(),
-    otpRequestedAt: timestamp({ precision: 3 }),
     ...timestamps,
   },
   (table) => [
@@ -34,10 +22,6 @@ export const users = pgTable(
     check(
       "last_name_no_digits",
       sql`${table.lastName} ~ '${sql.raw(NO_DIGITS_PATTERN)}'`,
-    ),
-    check(
-      "phone_format",
-      sql`${table.phone} ~ '${sql.raw(E164_PHONE_PATTERN)}'`,
     ),
   ],
 );

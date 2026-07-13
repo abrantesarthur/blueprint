@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { assertMockOtpNotInProduction, sslModeRequiresTls } from "../loadEnv";
+import { sslModeRequiresTls } from "../loadEnv";
 
 describe("config/loadEnv.ts", () => {
   describe("sslModeRequiresTls", () => {
@@ -25,37 +25,6 @@ describe("config/loadEnv.ts", () => {
     test("returns false for unrecognized modes", () => {
       expect(sslModeRequiresTls("")).toBe(false);
       expect(sslModeRequiresTls("bogus")).toBe(false);
-    });
-  });
-
-  describe("assertMockOtpNotInProduction", () => {
-    test("throws when the mock is enabled in production", () => {
-      expect(() =>
-        assertMockOtpNotInProduction({
-          mockEnabled: true,
-          runtimeEnvironment: "production",
-        }),
-      ).toThrow(/MOCK_OTP must not be enabled/);
-    });
-
-    test("allows the mock in non-production environments", () => {
-      for (const runtimeEnvironment of ["development", "test", "staging"]) {
-        expect(() =>
-          assertMockOtpNotInProduction({
-            mockEnabled: true,
-            runtimeEnvironment,
-          }),
-        ).not.toThrow();
-      }
-    });
-
-    test("allows production when the mock is disabled", () => {
-      expect(() =>
-        assertMockOtpNotInProduction({
-          mockEnabled: false,
-          runtimeEnvironment: "production",
-        }),
-      ).not.toThrow();
     });
   });
 });

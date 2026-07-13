@@ -12,7 +12,8 @@
         "src/tests/setup.ts",
         "src/shared/constants/*.ts",
         "src/db/schema/*.ts",
-        "src/integrations/*/index.ts",
+        "src/db/utils/index.ts",
+        "src/shared/utils/errors.ts",
         "src/**/__tests__/**/*.test.ts"
       ],
       "project": ["src/**/*.ts"]

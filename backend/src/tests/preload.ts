@@ -25,11 +25,9 @@ mock.module("../config/index.ts", () => ({
   env: {
     DATABASE_URL: new Secret(TEST_DATABASE_URL),
     JWT_SECRET: new Secret("test-jwt-secret-at-least-32-chars"),
-    JWT_REFRESH_SECRET: new Secret("test-jwt-refresh-secret-32-chars"),
     RUNTIME_ENVIRONMENT: "test",
     PORT: 3000,
     TRUST_PROXY: false,
-    MOCK_OTP: false,
     CLOUDFLARE_TUNNEL_TOKEN: new Secret(""),
     CLOUDFLARE_TUNNEL_HOSTNAME: "",
   },

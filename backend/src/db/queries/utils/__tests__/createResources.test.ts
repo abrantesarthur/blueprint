@@ -1,11 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 
 import { DbError } from "../../../../shared/utils/errors";
 import type { MockUser } from "../../../../tests/mock-data/users/types";
 import { agent, testDb } from "../../../../tests/setup";
-import { otpCodes } from "../../../schema/otpCodes";
 import { users } from "../../../schema/users";
+import { deleteUsers } from "../../users";
 import { createResources } from "../createResources";
 
 describe("db/queries/utils/createResources.ts", () => {
@@ -29,24 +28,45 @@ describe("db/queries/utils/createResources.ts", () => {
         table: users,
         data: [
           {
-            phone: "+5521988888888",
+            email: "single.insert@test.com",
             firstName: "Single",
             lastName: "Insert",
-            role: "user",
           },
         ],
       });
 
       expect(result!.id).toBeDefined();
       expect(result).toMatchObject({
-        phone: "+5521988888888",
+        email: "single.insert@test.com",
         firstName: "Single",
         lastName: "Insert",
-        role: "user",
       });
 
       // Cleanup
-      await testDb.delete(users).where(eq(users.id, result!.id));
+      await deleteUsers({ where: { id: result!.id } });
+    });
+
+    test("inserts a record with a null email", async () => {
+      const [result] = await createResources({
+        table: users,
+        data: [
+          {
+            email: null,
+            firstName: "Nullable",
+            lastName: "Email",
+          },
+        ],
+      });
+
+      expect(result!.id).toBeDefined();
+      expect(result).toMatchObject({
+        email: null,
+        firstName: "Nullable",
+        lastName: "Email",
+      });
+
+      // Cleanup
+      await deleteUsers({ where: { id: result!.id } });
     });
 
     test("inserts multiple records and returns all of them", async () => {
@@ -54,16 +74,14 @@ describe("db/queries/utils/createResources.ts", () => {
         table: users,
         data: [
           {
-            phone: "+5521977777771",
+            email: "multi.one@test.com",
             firstName: "Multi",
             lastName: "One",
-            role: "user",
           },
           {
-            phone: "+5521977777772",
+            email: "multi.two@test.com",
             firstName: "Multi",
             lastName: "Two",
-            role: "admin",
           },
         ],
       });
@@ -79,9 +97,9 @@ describe("db/queries/utils/createResources.ts", () => {
       });
 
       // Cleanup
-      await Promise.all(
-        results.map((u) => testDb.delete(users).where(eq(users.id, u.id))),
-      );
+      await deleteUsers({
+        where: { id: { value: results.map((u) => u.id), operator: "in" } },
+      });
     });
 
     test("supports transaction via tx parameter", async () => {
@@ -90,10 +108,9 @@ describe("db/queries/utils/createResources.ts", () => {
           table: users,
           data: [
             {
-              phone: "+5521966666666",
+              email: "transactional.insert@test.com",
               firstName: "Transactional",
               lastName: "Insert",
-              role: "user",
             },
           ],
           tx,
@@ -107,7 +124,7 @@ describe("db/queries/utils/createResources.ts", () => {
       });
 
       // Cleanup
-      await testDb.delete(users).where(eq(users.id, results[0]!.id));
+      await deleteUsers({ where: { id: results[0]!.id } });
     });
 
     test("wraps database errors in DbError", async () => {
@@ -116,135 +133,156 @@ describe("db/queries/utils/createResources.ts", () => {
           table: users,
           data: [
             {
-              phone: seededUser.phone,
+              email: seededUser.email,
               firstName: "Duplicate",
-              lastName: "Phone",
-              role: "user",
+              lastName: "Email",
             },
           ],
         }),
       ).rejects.toThrow(DbError);
     });
 
+    test("throws when onConflictDoUpdate and onConflictDoNothing are both provided", async () => {
+      await expect(
+        createResources({
+          table: users,
+          data: [
+            {
+              email: "mutually.exclusive@test.com",
+              firstName: "Mutually",
+              lastName: "Exclusive",
+            },
+          ],
+          onConflictDoUpdate: { target: "email", set: { firstName: "A" } },
+          onConflictDoNothing: { target: "email" },
+        }),
+      ).rejects.toThrow(
+        "createResources: onConflictDoUpdate and onConflictDoNothing are mutually exclusive",
+      );
+    });
+
     test("upserts record when onConflictDoUpdate is provided", async () => {
-      const expiresAt = new Date(Date.now() + 300_000);
+      const email = "upsert.target@test.com";
 
       const [original] = await createResources({
-        table: otpCodes,
-        data: [
-          {
-            phone: seededUser.phone,
-            code: "original-code",
-            requestToken: "ab".repeat(32),
-            expiresAt,
-          },
-        ],
+        table: users,
+        data: [{ email, firstName: "Original", lastName: "Name" }],
       });
 
-      const newCode = "upserted-code";
-      const newExpiresAt = new Date(Date.now() + 600_000);
-
       const [upserted] = await createResources({
-        table: otpCodes,
-        data: [
-          {
-            phone: seededUser.phone,
-            code: newCode,
-            requestToken: "ab".repeat(32),
-            expiresAt: newExpiresAt,
-          },
-        ],
+        table: users,
+        data: [{ email, firstName: "Ignored", lastName: "Ignored" }],
         onConflictDoUpdate: {
-          target: "phone",
+          target: "email",
           set: {
-            code: newCode,
-            expiresAt: newExpiresAt,
-            attempts: 0,
+            firstName: "Updated",
+            lastName: "Surname",
           },
         },
       });
 
       expect(upserted!.id).toBe(original!.id);
-      expect(upserted!.code).toBe(newCode);
-      expect(upserted!.expiresAt).toEqual(newExpiresAt);
-      expect(upserted!.attempts).toBe(0);
+      expect(upserted).toMatchObject({
+        email,
+        firstName: "Updated",
+        lastName: "Surname",
+      });
 
       // Cleanup
-      await testDb.delete(otpCodes).where(eq(otpCodes.id, upserted!.id));
+      await deleteUsers({ where: { id: upserted!.id } });
     });
 
     test("inserts normally when onConflictDoUpdate is provided but no conflict exists", async () => {
-      const expiresAt = new Date(Date.now() + 300_000);
-
       const [result] = await createResources({
-        table: otpCodes,
+        table: users,
         data: [
           {
-            phone: seededUser.phone,
-            code: "no-conflict-code",
-            requestToken: "ab".repeat(32),
-            expiresAt,
+            email: "no.conflict@test.com",
+            firstName: "Fresh",
+            lastName: "Insert",
           },
         ],
         onConflictDoUpdate: {
-          target: "phone",
+          target: "email",
           set: {
-            code: "should-not-be-used",
-            expiresAt: new Date(Date.now() + 999_000),
-            attempts: 5,
+            firstName: "ShouldNotBeUsed",
           },
         },
       });
 
-      expect(result!.phone).toBe(seededUser.phone);
-      expect(result!.code).toBe("no-conflict-code");
-      expect(result!.expiresAt).toEqual(expiresAt);
-      expect(result!.attempts).toBe(0);
-
-      // Cleanup
-      await testDb.delete(otpCodes).where(eq(otpCodes.id, result!.id));
-    });
-
-    test("supports array conflict target for composite unique constraints", async () => {
-      const expiresAt = new Date(Date.now() + 300_000);
-
-      const [original] = await createResources({
-        table: otpCodes,
-        data: [
-          {
-            phone: seededUser.phone,
-            code: "array-target-code",
-            requestToken: "ab".repeat(32),
-            expiresAt,
-          },
-        ],
+      expect(result).toMatchObject({
+        email: "no.conflict@test.com",
+        firstName: "Fresh",
+        lastName: "Insert",
       });
 
-      const newCode = "array-target-upserted";
+      // Cleanup
+      await deleteUsers({ where: { id: result!.id } });
+    });
+
+    test("supports array conflict target", async () => {
+      const email = "array.target@test.com";
+
+      const [original] = await createResources({
+        table: users,
+        data: [{ email, firstName: "Array", lastName: "Target" }],
+      });
 
       const [upserted] = await createResources({
-        table: otpCodes,
-        data: [
-          {
-            phone: seededUser.phone,
-            code: newCode,
-            requestToken: "ab".repeat(32),
-            expiresAt,
-          },
-        ],
+        table: users,
+        data: [{ email, firstName: "Ignored", lastName: "Ignored" }],
         onConflictDoUpdate: {
-          target: ["phone"],
+          target: ["email"],
           set: {
-            code: newCode,
+            firstName: "ArrayUpserted",
           },
         },
       });
 
       expect(upserted!.id).toBe(original!.id);
-      expect(upserted!.code).toBe(newCode);
+      expect(upserted!.firstName).toBe("ArrayUpserted");
 
       // Cleanup
-      await testDb.delete(otpCodes).where(eq(otpCodes.id, upserted!.id));
+      await deleteUsers({ where: { id: upserted!.id } });
+    });
+
+    test("returns an empty array when onConflictDoNothing hits a conflict", async () => {
+      const results = await createResources({
+        table: users,
+        data: [
+          {
+            email: seededUser.email,
+            firstName: "Conflicting",
+            lastName: "Row",
+          },
+        ],
+        onConflictDoNothing: { target: "email" },
+      });
+
+      expect(results).toEqual([]);
+    });
+
+    test("inserts normally when onConflictDoNothing is provided but no conflict exists", async () => {
+      const [result] = await createResources({
+        table: users,
+        data: [
+          {
+            email: "do.nothing.fresh@test.com",
+            firstName: "DoNothing",
+            lastName: "Fresh",
+          },
+        ],
+        onConflictDoNothing: { target: "email" },
+      });
+
+      expect(result).toMatchObject({
+        email: "do.nothing.fresh@test.com",
+        firstName: "DoNothing",
+        lastName: "Fresh",
+      });
+
+      // Cleanup
+      await deleteUsers({ where: { id: result!.id } });
     });
   });
 });

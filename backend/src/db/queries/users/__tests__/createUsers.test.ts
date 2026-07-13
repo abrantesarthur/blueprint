@@ -1,11 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
 
 import { DbError } from "../../../../shared/utils/errors";
 import type { MockUser } from "../../../../tests/mock-data/users/types";
-import { agent, testDb } from "../../../../tests/setup";
-import { users } from "../../../schema";
-import { createUsers } from "..";
+import { agent } from "../../../../tests/setup";
+import { createUsers, deleteUsers } from "..";
 
 describe("db/queries/users/createUsers.ts", () => {
   let carlosSilvaAB: MockUser;
@@ -27,34 +25,33 @@ describe("db/queries/users/createUsers.ts", () => {
       const [result] = await createUsers({
         data: [
           {
-            phone: "+5521999999999",
+            email: "john.doe@example.com",
             firstName: "John",
             lastName: "Doe",
-            role: "user",
           },
         ],
       });
 
-      expect(typeof result!.id).toBe("string");
-      expect(result!.phone).toBe("+5521999999999");
-      expect(result!.firstName).toBe("John");
-      expect(result!.lastName).toBe("Doe");
-      expect(result!.role).toBe("user");
+      expect(result!.id).toBeDefined();
+      expect(result).toMatchObject({
+        email: "john.doe@example.com",
+        firstName: "John",
+        lastName: "Doe",
+      });
       expect(result!.createdAt).toBeInstanceOf(Date);
       expect(result!.updatedAt).toBeInstanceOf(Date);
 
-      await testDb.delete(users).where(eq(users.id, result!.id));
+      await deleteUsers({ where: { id: result!.id } });
     });
 
-    test("throws QueryError on duplicate phone number", async () => {
+    test("throws DbError on duplicate email", async () => {
       await expect(
         createUsers({
           data: [
             {
-              phone: carlosSilvaAB.phone,
+              email: carlosSilvaAB.email,
               firstName: "Duplicate",
-              lastName: "Phone",
-              role: "user",
+              lastName: "Email",
             },
           ],
         }),
@@ -65,7 +62,6 @@ describe("db/queries/users/createUsers.ts", () => {
       const [result] = await createUsers({
         data: [
           {
-            phone: "+5531999999999",
             firstName: "Minimal",
             lastName: "User",
           },
@@ -73,11 +69,12 @@ describe("db/queries/users/createUsers.ts", () => {
       });
 
       expect(result!.email).toBeNull();
-      expect(result!.phoneVerified).toBe(false);
-      expect(result!.role).toBe("user");
-      expect(result!.otpRequestedAt).toBeNull();
+      expect(result).toMatchObject({
+        firstName: "Minimal",
+        lastName: "User",
+      });
 
-      await testDb.delete(users).where(eq(users.id, result!.id));
+      await deleteUsers({ where: { id: result!.id } });
     });
   });
 });

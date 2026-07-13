@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working in this repository.
 
 ## Project Overview
 
-Blueprint is a reusable full-stack monorepo template. It ships with an example vertical slice — a phone-OTP `auth` module and a `users` profile module — that demonstrates the repo patterns end-to-end (schema → queries → module → fixtures → seeders → tests). Replace the example slice with your own domain while keeping the conventions below.
+Blueprint is a reusable full-stack monorepo template. It ships with an example vertical slice — a minimal `users` CRUD module — that demonstrates the repo patterns end-to-end (schema → queries → module → fixtures → seeders → tests). Replace the example slice with your own domain while keeping the conventions below.
 
 ## Tech Stack
 
@@ -67,8 +67,8 @@ blueprint-monorepo/
 │       │   ├── queries/      # Centralized query functions (by entity)
 │       │   └── schema/       # Drizzle ORM schema definitions
 │       ├── fixtures/         # Seed data shared by seeders and tests
-│       ├── integrations/     # Outbound third-party API clients (otp/ delivery stub)
-│       ├── modules/          # Feature modules (auth/ and users/ examples)
+│       ├── integrations/     # Outbound third-party API clients
+│       ├── modules/          # Feature modules (users/ example)
 │       │   └── __tests__/    # E2E tests (cross-module user journeys)
 │       ├── shared/           # Middleware, utilities, types, constants
 │       │   └── utils/        # Error handling classes and JWT utilities
@@ -100,14 +100,12 @@ blueprint-monorepo/
 
 2. The `backend/src/modules/__tests__/` directory contains E2E tests covering cross-module user journeys.
 
-3. The example modules are `auth/` (phone-OTP login flow) and `users/` (profile management). Use them as the reference implementation when adding new modules.
+3. The example module is `users/` (minimal CRUD). Use it as the reference implementation when adding new modules.
 
-4. OTP delivery goes through the stub integration in `backend/src/integrations/otp/` (`sendOtp`). In development it logs the code to the console; in production it throws until you plug in a real provider (email/SMS).
-
-5. Error messages that reach the client live in `@blueprint/error-utils` as typed constants, one file per module (e.g., `utils/error/src/auth.ts`)
+4. Error messages that reach the client live in `@blueprint/error-utils` as typed constants, one file per module (e.g., `utils/error/src/users.ts`)
 
 - Each exports a `<Module>ErrorMessage` and a `<Module>ErrorTranslation`.
-- Services throw via constants: `throw new BadRequestError(AuthErrorMessage.INVALID_OTP)`.
+- Services throw via constants: `throw new ConflictError(UserErrorMessage.EMAIL_ALREADY_EXISTS)`.
 
 ### Database
 
@@ -119,8 +117,8 @@ blueprint-monorepo/
 
 When a TypeBox schema or type is used by **both** the backend and the frontend, it MUST live in `utils/api/src/`.
 
-- **File per module**: one file per backend module (e.g., `utils/api/src/auth.ts`).
-- **Shared regex patterns**: validation regex patterns in `utils/api/src/regex.ts` (e.g., `E164_PHONE_PATTERN`).
+- **File per module**: one file per backend module (e.g., `utils/api/src/users.ts`).
+- **Shared regex patterns**: validation regex patterns in `utils/api/src/regex.ts` (e.g., `NO_DIGITS_PATTERN`).
 - **Backend `model.ts`**: imports shared types and schema from `@blueprint/api-utils`
 
 ## Session Behavior
@@ -134,7 +132,7 @@ When a TypeBox schema or type is used by **both** the backend and the frontend, 
 **NEVER pass user-controlled input into Drizzle's `sql` template tag.** The `sql` function creates raw SQL fragments that bypass parameterization. All `sql` usage must be restricted to `backend/src/db/queries/` with hardcoded schema references only.
 
 - If you need a computed SQL expression (e.g., atomic increment), add a dedicated function in `db/queries/` instead of using `sql` in the service layer
-- `GenericUpdateOptions.values` deliberately does NOT accept `SQL` — this is a security boundary. See `incrementOtpAttempts.ts` for the pattern of handling SQL expressions within `db/queries/`
+- `GenericUpdateOptions.values` deliberately does NOT accept `SQL` — this is a security boundary. If a query needs a SQL expression in its update values, define the values type inline in that dedicated `db/queries/` function's `.set()` call instead of using `GenericUpdateOptions`
 
 ### Code Style
 
@@ -192,10 +190,10 @@ Available constants (all in milliseconds): `ONE_MS`, `ONE_SECOND`, `ONE_MINUTE`,
 
 TypeBox schemas in `model.ts` files follow these naming conventions:
 
-- **Request body schemas**: `<entity><action>Body` (e.g., `otpRequestBody`, `userCreateBody`)
+- **Request body schemas**: `<entity><action>Body` (e.g., `userCreateBody`, `userUpdateBody`)
 - **Query parameter schemas**: `<entity><action>Query` (e.g., `userListQuery`)
-- **Response schemas**: `<entity><action>Response` (e.g., `otpRequestResponse`, `userCreateResponse`)
-- **Enum/common schemas**: No suffix (e.g., `role`, `authUser`)
+- **Response schemas**: `<entity><action>Response` (e.g., `userResponse`, `userListResponse`)
+- **Enum/common schemas**: No suffix (e.g., `authUser`, `uuidParam`)
 
 ### Testing
 
@@ -203,8 +201,8 @@ TypeBox schemas in `model.ts` files follow these naming conventions:
   - **`index.test.ts`** — HTTP-layer concerns ONLY: authentication (401), path/body/query validation (422), rate limits (429), and a single happy-path per endpoint to lock in the end-user response shape. Do NOT re-test business rules (anything covered by the service.ts function).
   - **`service.test.ts`** — Business logic: role/ownership checks, state-transition rules, side effects, and error paths the service can throw. Exhaustive here, not in `index.test.ts`.
 - **Test file structure**: Organize `describe` blocks hierarchically:
-  1. **Top-level `describe`**: Use the file path being tested (e.g., `describe("auth/service.ts", ...)` in `service.test.ts`)
-  2. **Function-level `describe`**: One nested `describe` for each function being tested (e.g., `describe("verifyOtp", ...)`)
+  1. **Top-level `describe`**: Use the file path being tested (e.g., `describe("users/service.ts", ...)` in `service.test.ts`)
+  2. **Function-level `describe`**: One nested `describe` for each function being tested (e.g., `describe("getUser", ...)`)
   3. **Test cases**: Individual `test` blocks inside each function's `describe`
 - **Running specific tests**: When validating changes, tag the relevant `describe` or `test` blocks with `.only` (e.g., `describe.only(...)`, `test.only(...)`) so that `bun run test` executes only those tests instead of the full suite. This speeds up the feedback loop significantly.
 - **Helper functions**: When interacting with the database, you MUST use helpers in `@backend/src/db/queries`. Do not, in any circumstance, interact directly with the database via `testDb`.
@@ -216,8 +214,8 @@ TypeBox schemas in `model.ts` files follow these naming conventions:
 
   ```typescript
   // Good
-  import type { OtpRequestResponse } from "../model.ts";
-  const { status, body } = await app.handle<OtpRequestResponse>(...);
+  import type { UserResponse } from "../model.ts";
+  const { status, body } = await app.handle<UserResponse>(...);
 
   // Avoid
   const { status, body } = await app.handle<{
@@ -231,41 +229,41 @@ TypeBox schemas in `model.ts` files follow these naming conventions:
 
   ```typescript
   // Good
-  test("creates a new OTP code and returns the created record", async () => {
-    const expiresAt = new Date(Date.now() + 300_000);
-    const result = await createOtpCode({
-      otpCode: {
-        phone: johnDoe.phone,
-        code: "hashed-code-123",
-        expiresAt,
-      },
+  test("creates a new user and returns the created record", async () => {
+    const [result] = await createUsers({
+      data: [
+        {
+          firstName: "John",
+          lastName: "Doe",
+          email: "john.doe@example.com",
+        },
+      ],
     });
 
-    expect(result.id).toBeDefined();
+    expect(result!.id).toBeDefined();
     expect(result).toMatchObject({
-      phone: johnDoe.phone,
-      code: "hashed-code-123",
-      expiresAt,
-      attempts: 0,
+      firstName: "John",
+      lastName: "Doe",
+      email: "john.doe@example.com",
     });
   });
 
   // Avoid
-  test("creates a new OTP code and returns the created record", async () => {
-    const expiresAt = new Date(Date.now() + 300_000);
-    const result = await createOtpCode({
-      otpCode: {
-        phone: johnDoe.phone,
-        code: "hashed-code-123",
-        expiresAt,
-      },
+  test("creates a new user and returns the created record", async () => {
+    const [result] = await createUsers({
+      data: [
+        {
+          firstName: "John",
+          lastName: "Doe",
+          email: "john.doe@example.com",
+        },
+      ],
     });
 
-    expect(typeof result.id).toBe("string");
-    expect(result.phone).toBe(johnDoe.phone);
-    expect(result.code).toBe("hashed-code-123");
-    expect(result.expiresAt).toEqual(expiresAt);
-    expect(result.attempts).toBe(0);
+    expect(typeof result!.id).toBe("string");
+    expect(result!.firstName).toBe("John");
+    expect(result!.lastName).toBe("Doe");
+    expect(result!.email).toBe("john.doe@example.com");
   });
   ```
 
@@ -273,14 +271,14 @@ TypeBox schemas in `model.ts` files follow these naming conventions:
 
   ```typescript
   // Good - asserts both status and error body
-  expect(response.status).toBe(400);
+  expect(response.status).toBe(409);
   expect(response.body).toEqual({
-    code: "BAD_REQUEST",
-    error: "No valid OTP found. Please request a new code.",
+    code: "CONFLICT",
+    error: "A user with this email address already exists",
   });
 
   // Avoid - only checks status code
-  expect(response.status).toBe(400);
+  expect(response.status).toBe(409);
   ```
 
   Common error codes: `BAD_REQUEST` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `TOO_MANY_REQUESTS` (429), `VALIDATION_ERROR` (422).
@@ -293,7 +291,7 @@ E2E tests live in `backend/src/modules/__tests__/` and simulate complete user jo
 - **Each describe block tells one user-flow story**: Tests within a describe are sequential chapters of a single narrative, and state from one test intentionally carries over to impact the next. Do NOT reset state between tests in the same describe.
 - **File naming**: `<actor>-<journey>.test.ts` (e.g., `user-onboarding-flow.test.ts`)
 - **Top-level describe**: `"E2E: <Actor> <journey description>"`
-- **Test names**: Narrative style — `"user verifies their phone and completes signup"`. Unhappy path tests use `"rejects ..."` prefix.
+- **Test names**: Narrative style — `"user creates an account and updates their profile"`. Unhappy path tests use `"rejects ..."` prefix.
 - **Test order matters**: Tests are sequential; each step builds on the previous step's state
 - **Shared state**: Declare `let` variables at the describe level (e.g., `let accessToken: string`)
 - **Rate limiting**: Disable via `setRateLimitEnabled(false)` in `beforeAll`

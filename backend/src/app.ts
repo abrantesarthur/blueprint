@@ -1,7 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
-import { authModule, usersModule } from "./modules";
+import { usersModule } from "./modules";
 import { onError } from "./shared/hooks";
 import { globalIpRateLimitPlugin } from "./shared/middleware/rateLimit";
 
@@ -28,6 +28,6 @@ export function createApp() {
         timestamp: new Date().toISOString(),
       }))
       // API modules (JWT auth)
-      .group("/api", (app) => app.use(authModule).use(usersModule))
+      .group("/api", (app) => app.use(usersModule))
   );
 }

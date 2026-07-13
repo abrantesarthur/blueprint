@@ -42,17 +42,7 @@ export function makeId(entity: number, index: number): string {
   return `d0000000-${entityHex}-4000-a000-${indexHex}`;
 }
 
-// ─── Phone & Email Generators ───────────────────────────────────────────────
-
-/**
- * Generates a valid E.164 phone number.
- * @param index - Unique index to ensure no duplicates.
- * @returns A phone string in +15555XXXXXX format.
- */
-export function makePhone(index: number): string {
-  const suffix = index.toString().padStart(6, "0");
-  return `+15555${suffix}`;
-}
+// ─── Email Generator ────────────────────────────────────────────────────────
 
 /**
  * Generates a unique email address.

@@ -176,7 +176,7 @@ export interface NotClause<
  * @template JoinFilters - An intersection of joined-table filter shapes
  *   (see {@link IncludeJoinWhereFilters}). Defaults to `object` (no joined
  *   filters allowed). When provided, callers may mix main-table filters with
- *   dot-notation keys referencing joined columns (e.g., `"otp_codes.expiresAt"`)
+ *   dot-notation keys referencing joined columns (e.g., `"users.firstName"`)
  *   in the same clause.
  */
 export type WhereOption<
@@ -584,9 +584,9 @@ export interface GenericUpdateOptions<Entity> {
 /*
  * NOTE: If you need to create a query function that uses SQL expressions in
  * update values (e.g., atomic increments), define the values type inline in
- * that function's .set() call rather than using GenericUpdateOptions. See
- * incrementOtpAttempts.ts for the pattern. GenericUpdateOptions deliberately
- * excludes SQL to prevent injection vectors from the service layer.
+ * that function's .set() call rather than using GenericUpdateOptions.
+ * GenericUpdateOptions deliberately excludes SQL to prevent injection
+ * vectors from the service layer.
  */
 
 /** Generic options for delete queries. */
@@ -734,7 +734,7 @@ type ResolveIncludeItemNested<Inc> =
 
 /**
  * Recursively resolves an include tuple into an intersection of nested With* types.
- * Order-independent: `[users, otpCodes]` and `[otpCodes, users]` produce the same type.
+ * Order-independent: the same set of includes produces the same type regardless of order.
  *
  * @example
  * // Single required join:
@@ -761,9 +761,9 @@ type ResolveNestedIncludes<Inc extends readonly unknown[]> =
  * Unwraps the root entity to the top level and nests includes under relationship names.
  *
  * @example
- * // OtpCode with users include:
- * ResolveIncludeNested<[{ table: typeof users }], OtpCode>
- * // => Pick<OtpCode, keyof OtpCode> & { user: Pick<User, keyof User> }
+ * // An entity with a users include:
+ * ResolveIncludeNested<[{ table: typeof users }], Entity>
+ * // => Pick<Entity, keyof Entity> & { user: Pick<User, keyof User> }
  *
  * @template Inc - The include tuple.
  * @template Entity - The main entity type.

@@ -36,8 +36,6 @@
     "@elysiajs/cors": "^1.4.0",
     "@blueprint/api-utils": "workspace:*",
     "@blueprint/async-arg-utils": "workspace:*",
-    "@blueprint/crypto-utils": "workspace:*",
-    "@blueprint/enum-utils": "workspace:*",
     "@blueprint/error-utils": "workspace:*",
     "@blueprint/script-utils": "workspace:*",
     "@blueprint/time-utils": "workspace:*",

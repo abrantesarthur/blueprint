@@ -2,14 +2,14 @@ import { describe, expect, mock, test } from "bun:test";
 import { eq, getTableName } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
-import { otpCodes, users } from "../../../schema";
+import { users } from "../../../schema";
 import { applyIncludes, getJoinCondition } from "../applyIncludes";
 
 describe("db/queries/utils/applyIncludes.ts", () => {
   describe("getJoinCondition", () => {
-    test("throws when no FK exists between unrelated tables", () => {
-      expect(() => getJoinCondition(users, otpCodes)).toThrow(
-        `No foreign key found between "${getTableName(users)}" and "${getTableName(otpCodes)}".`,
+    test("throws when no FK exists between the tables", () => {
+      expect(() => getJoinCondition(users, users)).toThrow(
+        `No foreign key found between "${getTableName(users)}" and "${getTableName(users)}".`,
       );
     });
   });
@@ -62,17 +62,18 @@ describe("db/queries/utils/applyIncludes.ts", () => {
 
     test("uses on condition instead of FK auto-detection", () => {
       const query = createMockQuery();
-      const manualCondition = eq(users.phone, otpCodes.phone);
+      const managers = alias(users, "managers");
+      const manualCondition = eq(users.id, managers.id);
 
       applyIncludes({
         query: query as never,
         mainTable: users,
-        include: [{ table: otpCodes, on: manualCondition }],
+        include: [{ table: users, alias: managers, on: manualCondition }],
       });
 
       expect(query.innerJoin).toHaveBeenCalledTimes(1);
       expect(query.leftJoin).not.toHaveBeenCalled();
-      expect(query.innerJoin.mock.calls[0]![0]).toBe(otpCodes);
+      expect(query.innerJoin.mock.calls[0]![0]).toBe(managers);
       expect(query.innerJoin.mock.calls[0]![1]).toBe(manualCondition);
     });
 
@@ -83,78 +84,63 @@ describe("db/queries/utils/applyIncludes.ts", () => {
         applyIncludes({
           query: query as never,
           mainTable: users,
-          include: [{ table: otpCodes }],
+          include: [{ table: users }],
         }),
       ).toThrow(
-        `No foreign key found between "${getTableName(users)}" and "${getTableName(otpCodes)}".`,
+        `No foreign key found between "${getTableName(users)}" and "${getTableName(users)}".`,
       );
-    });
-
-    test("uses alias as join target when provided", () => {
-      const query = createMockQuery();
-      const activeOtpCodes = alias(otpCodes, "activeOtpCodes");
-      const onCondition = eq(users.phone, activeOtpCodes.phone);
-
-      applyIncludes({
-        query: query as never,
-        mainTable: users,
-        include: [{ table: otpCodes, alias: activeOtpCodes, on: onCondition }],
-      });
-
-      expect(query.innerJoin).toHaveBeenCalledTimes(1);
-      expect(query.leftJoin).not.toHaveBeenCalled();
-      expect(query.innerJoin.mock.calls[0]![0]).toBe(activeOtpCodes);
-      expect(query.innerJoin.mock.calls[0]![1]).toBeDefined();
     });
 
     test("throws error when aliased include lacks on", () => {
       const query = createMockQuery();
-      const activeOtpCodes = alias(otpCodes, "activeOtpCodes");
+      const managers = alias(users, "managers");
 
       expect(() =>
         applyIncludes({
           query: query as never,
           mainTable: users,
-          include: [{ table: otpCodes, alias: activeOtpCodes }],
+          include: [{ table: users, alias: managers }],
         }),
       ).toThrow(
-        'Include for "otp_codes" with alias "activeOtpCodes" must provide an explicit "on" condition (FK auto-detection is not supported on aliased tables).',
+        'Include for "users" with alias "managers" must provide an explicit "on" condition (FK auto-detection is not supported on aliased tables).',
       );
     });
 
     test("throws error when nested include under aliased parent lacks on", () => {
       const query = createMockQuery();
-      const verifiedUsers = alias(users, "verifiedUsers");
+      const managers = alias(users, "managers");
 
       expect(() =>
         applyIncludes({
           query: query as never,
-          mainTable: otpCodes,
+          mainTable: users,
           include: [
             {
               table: users,
-              alias: verifiedUsers,
-              on: eq(otpCodes.phone, verifiedUsers.phone),
-              include: [{ table: otpCodes }],
+              alias: managers,
+              on: eq(users.id, managers.id),
+              include: [{ table: users }],
             },
           ],
         }),
       ).toThrow(
-        'Nested include for "otp_codes" under aliased table "verifiedUsers" must provide an explicit "on" condition (FK auto-detection is not supported on aliased tables).',
+        'Nested include for "users" under aliased table "managers" must provide an explicit "on" condition (FK auto-detection is not supported on aliased tables).',
       );
     });
 
     describe("left join support (required: false)", () => {
       test("calls `leftJoin` when `required` is `false`", () => {
         const query = createMockQuery();
+        const managers = alias(users, "managers");
 
         applyIncludes({
           query: query as never,
           mainTable: users,
           include: [
             {
-              table: otpCodes,
-              on: eq(users.phone, otpCodes.phone),
+              table: users,
+              alias: managers,
+              on: eq(users.id, managers.id),
               required: false,
             },
           ],
@@ -162,19 +148,21 @@ describe("db/queries/utils/applyIncludes.ts", () => {
 
         expect(query.leftJoin).toHaveBeenCalledTimes(1);
         expect(query.innerJoin).not.toHaveBeenCalled();
-        expect(query.leftJoin.mock.calls[0]![0]).toBe(otpCodes);
+        expect(query.leftJoin.mock.calls[0]![0]).toBe(managers);
       });
 
       test("calls `innerJoin` when `required` is explicitly `true`", () => {
         const query = createMockQuery();
+        const managers = alias(users, "managers");
 
         applyIncludes({
           query: query as never,
           mainTable: users,
           include: [
             {
-              table: otpCodes,
-              on: eq(users.phone, otpCodes.phone),
+              table: users,
+              alias: managers,
+              on: eq(users.id, managers.id),
               required: true,
             },
           ],
@@ -182,40 +170,45 @@ describe("db/queries/utils/applyIncludes.ts", () => {
 
         expect(query.innerJoin).toHaveBeenCalledTimes(1);
         expect(query.leftJoin).not.toHaveBeenCalled();
-        expect(query.innerJoin.mock.calls[0]![0]).toBe(otpCodes);
+        expect(query.innerJoin.mock.calls[0]![0]).toBe(managers);
       });
 
       test("calls `innerJoin` by default when `required` is omitted", () => {
         const query = createMockQuery();
+        const managers = alias(users, "managers");
 
         applyIncludes({
           query: query as never,
           mainTable: users,
-          include: [{ table: otpCodes, on: eq(users.phone, otpCodes.phone) }],
+          include: [
+            { table: users, alias: managers, on: eq(users.id, managers.id) },
+          ],
         });
 
         expect(query.innerJoin).toHaveBeenCalledTimes(1);
         expect(query.leftJoin).not.toHaveBeenCalled();
-        expect(query.innerJoin.mock.calls[0]![0]).toBe(otpCodes);
+        expect(query.innerJoin.mock.calls[0]![0]).toBe(managers);
       });
 
       test("mixed joins: includes with different `required` values", () => {
         const query = createMockQuery();
-        const activeOtpCodes = alias(otpCodes, "activeOtpCodes");
+        const managers = alias(users, "managers");
+        const referrers = alias(users, "referrers");
 
         applyIncludes({
           query: query as never,
           mainTable: users,
           include: [
             {
-              table: otpCodes,
-              on: eq(users.phone, otpCodes.phone),
+              table: users,
+              alias: managers,
+              on: eq(users.id, managers.id),
               required: true,
             },
             {
-              table: otpCodes,
-              alias: activeOtpCodes,
-              on: eq(users.phone, activeOtpCodes.phone),
+              table: users,
+              alias: referrers,
+              on: eq(users.id, referrers.id),
               required: false,
             },
           ],
@@ -224,35 +217,11 @@ describe("db/queries/utils/applyIncludes.ts", () => {
         expect(query.innerJoin).toHaveBeenCalledTimes(1);
         expect(query.leftJoin).toHaveBeenCalledTimes(1);
 
-        // First call: innerJoin for otpCodes
-        expect(query.innerJoin.mock.calls[0]![0]).toBe(otpCodes);
+        // First call: innerJoin for the managers alias
+        expect(query.innerJoin.mock.calls[0]![0]).toBe(managers);
 
-        // Second call: leftJoin for the aliased otpCodes
-        expect(query.leftJoin.mock.calls[0]![0]).toBe(activeOtpCodes);
-      });
-
-      test("left join with alias", () => {
-        const query = createMockQuery();
-        const activeOtpCodes = alias(otpCodes, "activeOtpCodes");
-        const onCondition = eq(users.phone, activeOtpCodes.phone);
-
-        applyIncludes({
-          query: query as never,
-          mainTable: users,
-          include: [
-            {
-              table: otpCodes,
-              alias: activeOtpCodes,
-              on: onCondition,
-              required: false,
-            },
-          ],
-        });
-
-        expect(query.leftJoin).toHaveBeenCalledTimes(1);
-        expect(query.innerJoin).not.toHaveBeenCalled();
-        expect(query.leftJoin.mock.calls[0]![0]).toBe(activeOtpCodes);
-        expect(query.leftJoin.mock.calls[0]![1]).toBeDefined();
+        // Second call: leftJoin for the referrers alias
+        expect(query.leftJoin.mock.calls[0]![0]).toBe(referrers);
       });
     });
   });

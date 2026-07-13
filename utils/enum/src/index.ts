@@ -31,15 +31,24 @@ function getSchemaValues<T extends TUnion<TLiteral<string>[]>>(
 
 // ============ TypeBox Schemas (Single Source of Truth) ============
 
-/** TypeBox schema for user roles. */
-export const roleSchema = t.Union([t.Literal("user"), t.Literal("admin")]);
+/**
+ * Template example enum. Illustrates the single-source-of-truth pattern for
+ * enums shared between TypeBox validation and Drizzle `pgEnum` columns:
+ * define the TypeBox Union here, derive the TypeScript type via `Static`,
+ * and derive the value tuple via {@link getSchemaValues}. Replace with your
+ * own domain enums.
+ */
+export const exampleStatusSchema = t.Union([
+  t.Literal("active"),
+  t.Literal("archived"),
+]);
 
 // ============ Derived TypeScript Types ============
 
-/** User role type. */
-export type Role = Static<typeof roleSchema>;
+/** Template example status type derived from {@link exampleStatusSchema}. */
+export type ExampleStatus = Static<typeof exampleStatusSchema>;
 
 // ============ Derived Value Arrays (for Drizzle pgEnum) ============
 
-/** User role values. */
-export const ROLE_VALUES = getSchemaValues(roleSchema);
+/** Template example status values for Drizzle `pgEnum`. */
+export const EXAMPLE_STATUS_VALUES = getSchemaValues(exampleStatusSchema);

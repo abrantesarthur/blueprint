@@ -8,14 +8,16 @@ import { findOneUser } from "..";
 
 describe("db/queries/users/findOneUser.ts", () => {
   let pedroOliveira: MockUser;
+  let joaoOliveiraBCD: MockUser;
   let seededUser: User;
 
   beforeAll(async () => {
     await agent.seed({
-      users: ["pedroOliveira", "carlosSilvaAB"],
+      users: ["pedroOliveira", "carlosSilvaAB", "joaoOliveiraBCD"],
     });
 
     pedroOliveira = agent.getFixture({ user: "pedroOliveira" });
+    joaoOliveiraBCD = agent.getFixture({ user: "joaoOliveiraBCD" });
 
     // Fetch seeded user to get actual timestamps
     seededUser = await findOneUser({
@@ -88,41 +90,13 @@ describe("db/queries/users/findOneUser.ts", () => {
       expect(result.lastName).toBe(pedroOliveira.lastName);
     });
 
-    test("finds user by phone", async () => {
+    test("finds user by email (null)", async () => {
       const result = await findOneUser({
-        where: { phone: pedroOliveira.phone },
+        where: { email: null },
       });
 
-      expect(result.id).toBe(pedroOliveira.id);
-      expect(result.phone).toBe(pedroOliveira.phone);
-    });
-
-    test("finds user by phoneVerified", async () => {
-      const result = await findOneUser({
-        where: {
-          phoneVerified: seededUser.phoneVerified,
-          id: pedroOliveira.id,
-        },
-      });
-
-      expect(result.phoneVerified).toBe(seededUser.phoneVerified);
-    });
-
-    test("finds user by role", async () => {
-      const result = await findOneUser({
-        where: { role: "user", id: pedroOliveira.id },
-      });
-
-      expect(result.role).toBe("user");
-    });
-
-    test("finds user by otpRequestedAt (null)", async () => {
-      const result = await findOneUser({
-        where: { otpRequestedAt: null, id: pedroOliveira.id },
-      });
-
-      expect(result.id).toBe(pedroOliveira.id);
-      expect(result.otpRequestedAt).toBeNull();
+      expect(result.id).toBe(joaoOliveiraBCD.id);
+      expect(result.email).toBeNull();
     });
 
     test("finds user by createdAt", async () => {

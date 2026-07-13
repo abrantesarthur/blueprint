@@ -1,87 +1,9 @@
 {
-  "id": "e2f0923b-08fa-4fe6-89ac-d2c238bd79ea",
+  "id": "76ad2cdb-73d9-43e0-9839-7266635c3fa6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.otp_codes": {
-      "name": "otp_codes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "phone": {
-          "name": "phone",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "request_token": {
-          "name": "request_token",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "otp_codes_phone_unique": {
-          "name": "otp_codes_phone_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "phone"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "otp_phone_format": {
-          "name": "otp_phone_format",
-          "value": "\"otp_codes\".\"phone\" ~ '^\\+[1-9][0-9]{7,14}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.users": {
       "name": "users",
       "schema": "",
@@ -111,33 +33,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "phone": {
-          "name": "phone",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "phone_verified": {
-          "name": "phone_verified",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "role": {
-          "name": "role",
-          "type": "role_enum",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'user'"
-        },
-        "otp_requested_at": {
-          "name": "otp_requested_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp (3)",
@@ -163,13 +58,6 @@
           "columns": [
             "email"
           ]
-        },
-        "users_phone_unique": {
-          "name": "users_phone_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "phone"
-          ]
         }
       },
       "policies": {},
@@ -181,25 +69,12 @@
         "last_name_no_digits": {
           "name": "last_name_no_digits",
           "value": "\"users\".\"last_name\" ~ '^[^\\d]*$'"
-        },
-        "phone_format": {
-          "name": "phone_format",
-          "value": "\"users\".\"phone\" ~ '^\\+[1-9][0-9]{7,14}$'"
         }
       },
       "isRLSEnabled": false
     }
   },
-  "enums": {
-    "public.role_enum": {
-      "name": "role_enum",
-      "schema": "public",
-      "values": [
-        "user",
-        "admin"
-      ]
-    }
-  },
+  "enums": {},
   "schemas": {},
   "sequences": {},
   "roles": {},

@@ -8,6 +8,7 @@ describe("db/queries/users/findUsers.ts", () => {
   let carlosSilvaAB: MockUser;
   let mariaSantosB: MockUser;
   let joaoOliveiraBCD: MockUser;
+  let pedroOliveira: MockUser;
   let anaCostaAdmin: MockUser;
   let lucasFerreiraAdmin: MockUser;
 
@@ -17,6 +18,7 @@ describe("db/queries/users/findUsers.ts", () => {
         "carlosSilvaAB",
         "mariaSantosB",
         "joaoOliveiraBCD",
+        "pedroOliveira",
         "anaCostaAdmin",
         "lucasFerreiraAdmin",
       ],
@@ -25,6 +27,7 @@ describe("db/queries/users/findUsers.ts", () => {
     carlosSilvaAB = agent.getFixture({ user: "carlosSilvaAB" });
     mariaSantosB = agent.getFixture({ user: "mariaSantosB" });
     joaoOliveiraBCD = agent.getFixture({ user: "joaoOliveiraBCD" });
+    pedroOliveira = agent.getFixture({ user: "pedroOliveira" });
     anaCostaAdmin = agent.getFixture({ user: "anaCostaAdmin" });
     lucasFerreiraAdmin = agent.getFixture({ user: "lucasFerreiraAdmin" });
   });
@@ -39,7 +42,7 @@ describe("db/queries/users/findUsers.ts", () => {
         attributes: [],
       });
 
-      expect(results).toEqual([{}, {}, {}, {}, {}]);
+      expect(results).toEqual([{}, {}, {}, {}, {}, {}]);
     });
 
     test("returns a single column with orderBy", async () => {
@@ -51,6 +54,7 @@ describe("db/queries/users/findUsers.ts", () => {
       expect(results).toEqual([
         { id: carlosSilvaAB.id },
         { id: mariaSantosB.id },
+        { id: pedroOliveira.id },
         { id: anaCostaAdmin.id },
         { id: lucasFerreiraAdmin.id },
         { id: joaoOliveiraBCD.id },
@@ -59,7 +63,7 @@ describe("db/queries/users/findUsers.ts", () => {
 
     test("returns multiple columns with orderBy", async () => {
       const results = await findUsers({
-        attributes: ["id", "email", "role"],
+        attributes: ["id", "email", "lastName"],
         orderBy: { id: "asc" },
       });
 
@@ -67,51 +71,62 @@ describe("db/queries/users/findUsers.ts", () => {
         {
           id: carlosSilvaAB.id,
           email: carlosSilvaAB.email,
-          role: "user",
+          lastName: carlosSilvaAB.lastName,
         },
         {
           id: mariaSantosB.id,
           email: mariaSantosB.email,
-          role: "user",
+          lastName: mariaSantosB.lastName,
         },
-        { id: anaCostaAdmin.id, email: anaCostaAdmin.email, role: "admin" },
+        {
+          id: pedroOliveira.id,
+          email: pedroOliveira.email,
+          lastName: pedroOliveira.lastName,
+        },
+        {
+          id: anaCostaAdmin.id,
+          email: anaCostaAdmin.email,
+          lastName: anaCostaAdmin.lastName,
+        },
         {
           id: lucasFerreiraAdmin.id,
           email: lucasFerreiraAdmin.email,
-          role: "admin",
+          lastName: lucasFerreiraAdmin.lastName,
         },
         {
           id: joaoOliveiraBCD.id,
           email: joaoOliveiraBCD.email,
-          role: "user",
+          lastName: joaoOliveiraBCD.lastName,
         },
       ]);
     });
 
     test("returns aggregate with regular column", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        orderBy: { lastName: "asc" },
       });
 
       expect(results).toEqual([
-        { role: "user", total: 3 },
-        { role: "admin", total: 2 },
+        { lastName: "Costa", total: 1 },
+        { lastName: "Ferreira", total: 1 },
+        { lastName: "Oliveira", total: 2 },
+        { lastName: "Santos", total: 1 },
+        { lastName: "Silva", total: 1 },
       ]);
     });
 
     test("returns attributes with where filter", async () => {
       const results = await findUsers({
         attributes: ["id", "email"],
-        where: { role: "user" },
+        where: { lastName: "Oliveira" },
         orderBy: { id: "asc" },
       });
 
       expect(results).toEqual([
-        { id: carlosSilvaAB.id, email: carlosSilvaAB.email },
-        { id: mariaSantosB.id, email: mariaSantosB.email },
+        { id: pedroOliveira.id, email: pedroOliveira.email },
         { id: joaoOliveiraBCD.id, email: joaoOliveiraBCD.email },
       ]);
     });
@@ -126,17 +141,17 @@ describe("db/queries/users/findUsers.ts", () => {
 
       expect(results).toEqual([
         { id: mariaSantosB.id },
-        { id: anaCostaAdmin.id },
+        { id: pedroOliveira.id },
       ]);
     });
 
     test("returns nullable columns as null", async () => {
       const results = await findUsers({
-        attributes: ["id", "otpRequestedAt"],
-        where: { id: carlosSilvaAB.id },
+        attributes: ["id", "email"],
+        where: { id: joaoOliveiraBCD.id },
       });
 
-      expect(results).toEqual([{ id: carlosSilvaAB.id, otpRequestedAt: null }]);
+      expect(results).toEqual([{ id: joaoOliveiraBCD.id, email: null }]);
     });
 
     test("returns timestamp columns", async () => {
@@ -156,9 +171,9 @@ describe("db/queries/users/findUsers.ts", () => {
     test("throws if specifying non-grouped attribute when grouping by non-PK column", async () => {
       await expect(
         findUsers({
-          groupBy: ["role"],
-          attributes: ["role", "email"],
-          orderBy: { role: "asc" },
+          groupBy: ["lastName"],
+          attributes: ["lastName", "email"],
+          orderBy: { lastName: "asc" },
         }),
       ).rejects.toThrow(Error);
     });
@@ -173,177 +188,213 @@ describe("db/queries/users/findUsers.ts", () => {
 
       const sorted = [...results].sort((a, b) => a.id.localeCompare(b.id));
       expect(results).toEqual(sorted);
-      expect(results).toHaveLength(5);
+      expect(results).toHaveLength(6);
       expect(results.every((r) => r.count === 1)).toBe(true);
     });
 
-    test("groups by role", async () => {
+    test("groups by lastName", async () => {
       const results = await findUsers({
-        groupBy: ["role"],
-        attributes: ["role"],
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        attributes: ["lastName"],
+        orderBy: { lastName: "asc" },
       });
 
-      expect(results).toEqual([{ role: "user" }, { role: "admin" }]);
+      expect(results).toEqual([
+        { lastName: "Costa" },
+        { lastName: "Ferreira" },
+        { lastName: "Oliveira" },
+        { lastName: "Santos" },
+        { lastName: "Silva" },
+      ]);
     });
 
-    test("groups by phoneVerified", async () => {
+    test("groups by firstName", async () => {
       const results = await findUsers({
-        groupBy: ["phoneVerified"],
-        attributes: ["phoneVerified"],
+        groupBy: ["firstName"],
+        attributes: ["firstName"],
+        orderBy: { firstName: "asc" },
       });
 
-      expect(results).toEqual([{ phoneVerified: false }]);
+      expect(results).toEqual([
+        { firstName: "Ana" },
+        { firstName: "Carlos" },
+        { firstName: "Joao" },
+        { firstName: "Lucas" },
+        { firstName: "Maria" },
+        { firstName: "Pedro" },
+      ]);
     });
 
     test("groups by multiple columns", async () => {
       const results = await findUsers({
-        groupBy: ["role", "phoneVerified"],
-        attributes: ["role", "phoneVerified"],
-        orderBy: { role: "asc" },
+        groupBy: ["lastName", "firstName"],
+        attributes: ["lastName", "firstName"],
+        orderBy: { firstName: "asc" },
       });
 
       expect(results).toEqual([
-        { role: "user", phoneVerified: false },
-        { role: "admin", phoneVerified: false },
+        { lastName: "Costa", firstName: "Ana" },
+        { lastName: "Silva", firstName: "Carlos" },
+        { lastName: "Oliveira", firstName: "Joao" },
+        { lastName: "Ferreira", firstName: "Lucas" },
+        { lastName: "Santos", firstName: "Maria" },
+        { lastName: "Oliveira", firstName: "Pedro" },
       ]);
     });
 
     test("groups with where filter", async () => {
       const results = await findUsers({
-        groupBy: ["role"],
-        attributes: ["role"],
-        where: { role: "user" },
+        groupBy: ["lastName"],
+        attributes: ["lastName"],
+        where: { lastName: "Oliveira" },
       });
 
-      expect(results).toEqual([{ role: "user" }]);
+      expect(results).toEqual([{ lastName: "Oliveira" }]);
     });
 
     test("groups with limit", async () => {
       const results = await findUsers({
-        groupBy: ["role"],
-        attributes: ["role"],
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        attributes: ["lastName"],
+        orderBy: { lastName: "asc" },
         limit: 1,
       });
 
-      expect(results).toEqual([{ role: "user" }]);
+      expect(results).toEqual([{ lastName: "Costa" }]);
     });
 
     test("groups with offset", async () => {
       const results = await findUsers({
-        groupBy: ["role"],
-        attributes: ["role"],
-        orderBy: { role: "asc" },
-        offset: 1,
+        groupBy: ["lastName"],
+        attributes: ["lastName"],
+        orderBy: { lastName: "asc" },
+        offset: 4,
       });
 
-      expect(results).toEqual([{ role: "admin" }]);
+      expect(results).toEqual([{ lastName: "Silva" }]);
     });
 
     test("groups with descending order", async () => {
       const results = await findUsers({
-        groupBy: ["role"],
-        attributes: ["role"],
-        orderBy: { role: "desc" },
+        groupBy: ["lastName"],
+        attributes: ["lastName"],
+        orderBy: { lastName: "desc" },
       });
 
-      expect(results).toEqual([{ role: "admin" }, { role: "user" }]);
+      expect(results).toEqual([
+        { lastName: "Silva" },
+        { lastName: "Santos" },
+        { lastName: "Oliveira" },
+        { lastName: "Ferreira" },
+        { lastName: "Costa" },
+      ]);
     });
 
     describe("grouping with aggregates", () => {
-      test("count grouped by role", async () => {
+      test("count grouped by lastName", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          orderBy: { role: "asc" },
+          orderBy: { lastName: "asc" },
         });
 
         expect(results).toEqual([
-          { role: "user", total: 3 },
-          { role: "admin", total: 2 },
+          { lastName: "Costa", total: 1 },
+          { lastName: "Ferreira", total: 1 },
+          { lastName: "Oliveira", total: 2 },
+          { lastName: "Santos", total: 1 },
+          { lastName: "Silva", total: 1 },
         ]);
       });
 
       test("count with where filter", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          where: { role: "user" },
-          orderBy: { role: "asc" },
+          where: { lastName: "Oliveira" },
+          orderBy: { lastName: "asc" },
         });
 
-        expect(results).toEqual([{ role: "user", total: 3 }]);
+        expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
       });
 
       test("count with limit", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          orderBy: { role: "asc" },
+          orderBy: { lastName: "asc" },
           limit: 1,
         });
 
-        expect(results).toEqual([{ role: "user", total: 3 }]);
+        expect(results).toEqual([{ lastName: "Costa", total: 1 }]);
       });
 
       test("count with offset", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          orderBy: { role: "asc" },
-          offset: 1,
+          orderBy: { lastName: "asc" },
+          offset: 4,
         });
 
-        expect(results).toEqual([{ role: "admin", total: 2 }]);
+        expect(results).toEqual([{ lastName: "Silva", total: 1 }]);
       });
 
       test("count with descending order", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          orderBy: { role: "desc" },
+          orderBy: { lastName: "desc" },
         });
 
         expect(results).toEqual([
-          { role: "admin", total: 2 },
-          { role: "user", total: 3 },
+          { lastName: "Silva", total: 1 },
+          { lastName: "Santos", total: 1 },
+          { lastName: "Oliveira", total: 2 },
+          { lastName: "Ferreira", total: 1 },
+          { lastName: "Costa", total: 1 },
         ]);
       });
 
-      test("count on specific column", async () => {
+      test("count on specific column skips null values", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
-          aggregates: [{ fn: "count", column: "id", as: "idCount" }],
-          orderBy: { role: "asc" },
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
+          aggregates: [{ fn: "count", column: "email", as: "emailCount" }],
+          orderBy: { lastName: "asc" },
         });
 
         expect(results).toEqual([
-          { role: "user", idCount: 3 },
-          { role: "admin", idCount: 2 },
+          { lastName: "Costa", emailCount: 1 },
+          { lastName: "Ferreira", emailCount: 1 },
+          { lastName: "Oliveira", emailCount: 1 },
+          { lastName: "Santos", emailCount: 1 },
+          { lastName: "Silva", emailCount: 1 },
         ]);
       });
 
       test("multiple aggregates with different aliases", async () => {
         const results = await findUsers({
-          groupBy: ["role"],
-          attributes: ["role"],
+          groupBy: ["lastName"],
+          attributes: ["lastName"],
           aggregates: [
             { fn: "count", column: "*", as: "total" },
             { fn: "count", column: "id", as: "idCount" },
           ],
-          orderBy: { role: "asc" },
+          orderBy: { lastName: "asc" },
         });
 
         expect(results).toEqual([
-          { role: "user", total: 3, idCount: 3 },
-          { role: "admin", total: 2, idCount: 2 },
+          { lastName: "Costa", total: 1, idCount: 1 },
+          { lastName: "Ferreira", total: 1, idCount: 1 },
+          { lastName: "Oliveira", total: 2, idCount: 2 },
+          { lastName: "Santos", total: 1, idCount: 1 },
+          { lastName: "Silva", total: 1, idCount: 1 },
         ]);
       });
     });
@@ -352,120 +403,134 @@ describe("db/queries/users/findUsers.ts", () => {
   describe("having", () => {
     test("filters groups by aggregate with gt", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { operator: "gt", value: 2 } },
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        having: { total: { operator: "gt", value: 1 } },
+        orderBy: { lastName: "asc" },
       });
 
-      expect(results).toEqual([{ role: "user", total: 3 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("filters groups by aggregate with eq", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: { total: { operator: "eq", value: 2 } },
       });
 
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("filters groups by aggregate with gte", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { operator: "gte", value: 2 } },
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        having: { total: { operator: "gte", value: 1 } },
+        orderBy: { lastName: "asc" },
       });
 
       expect(results).toEqual([
-        { role: "user", total: 3 },
-        { role: "admin", total: 2 },
+        { lastName: "Costa", total: 1 },
+        { lastName: "Ferreira", total: 1 },
+        { lastName: "Oliveira", total: 2 },
+        { lastName: "Santos", total: 1 },
+        { lastName: "Silva", total: 1 },
       ]);
     });
 
     test("filters groups by aggregate with lt", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { operator: "lt", value: 3 } },
+        groupBy: ["lastName"],
+        having: { total: { operator: "lt", value: 2 } },
+        orderBy: { lastName: "asc" },
       });
 
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toEqual([
+        { lastName: "Costa", total: 1 },
+        { lastName: "Ferreira", total: 1 },
+        { lastName: "Santos", total: 1 },
+        { lastName: "Silva", total: 1 },
+      ]);
     });
 
     test("filters groups by aggregate with lte", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { operator: "lte", value: 2 } },
+        groupBy: ["lastName"],
+        having: { total: { operator: "lte", value: 1 } },
+        orderBy: { lastName: "asc" },
       });
 
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toEqual([
+        { lastName: "Costa", total: 1 },
+        { lastName: "Ferreira", total: 1 },
+        { lastName: "Santos", total: 1 },
+        { lastName: "Silva", total: 1 },
+      ]);
     });
 
     test("filters groups by aggregate with ne", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { operator: "ne", value: 3 } },
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        having: { total: { operator: "ne", value: 1 } },
+        orderBy: { lastName: "asc" },
       });
 
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("filters by grouped entity column", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { role: { operator: "eq", value: "user" } },
+        groupBy: ["lastName"],
+        having: { lastName: { operator: "eq", value: "Oliveira" } },
       });
 
-      expect(results).toEqual([{ role: "user", total: 3 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("combines aggregate and column having", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: {
           total: { operator: "gte", value: 1 },
-          role: { operator: "eq", value: "user" },
+          lastName: { operator: "eq", value: "Oliveira" },
         },
       });
 
-      expect(results).toEqual([{ role: "user", total: 3 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("combines having with where", async () => {
-      // where narrows to non-admin users (3 regular users)
-      // having total > 2 keeps only the "user" group
+      // where narrows out the Silva user; having keeps groups with 2+ members
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        where: { not: { role: "admin" } },
-        having: { total: { operator: "gt", value: 2 } },
+        groupBy: ["lastName"],
+        where: { not: { lastName: "Silva" } },
+        having: { total: { operator: "gt", value: 1 } },
       });
 
-      expect(results).toEqual([{ role: "user", total: 3 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("returns empty when no groups match", async () => {
       const results = await findUsers({
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: { total: { operator: "gt", value: 100 } },
       });
 
@@ -479,7 +544,7 @@ describe("db/queries/users/findUsers.ts", () => {
         having: { total: { operator: "gt", value: 3 } },
       });
 
-      expect(results).toEqual([{ total: 5 }]);
+      expect(results).toEqual([{ total: 6 }]);
     });
   });
 
@@ -498,7 +563,7 @@ describe("db/queries/users/findUsers.ts", () => {
         where: { id: { operator: "ne", value: carlosSilvaAB.id } },
       });
 
-      expect(result).toHaveLength(4);
+      expect(result).toHaveLength(5);
       expect(result.filter((r) => r.id === carlosSilvaAB.id)).toBeEmpty();
     });
 
@@ -509,6 +574,7 @@ describe("db/queries/users/findUsers.ts", () => {
             { operator: "ne", value: carlosSilvaAB.id },
             { operator: "ne", value: mariaSantosB.id },
             { operator: "ne", value: joaoOliveiraBCD.id },
+            { operator: "ne", value: pedroOliveira.id },
             { operator: "ne", value: anaCostaAdmin.id },
           ],
         },
@@ -527,22 +593,31 @@ describe("db/queries/users/findUsers.ts", () => {
       expect(result[0]!.email).toBe(carlosSilvaAB.email);
     });
 
-    test("filters by role", async () => {
+    test("filters by null email", async () => {
       const result = await findUsers({
-        where: { role: "user" },
+        where: { email: null },
       });
 
-      expect(result).toHaveLength(3);
-      expect(result.every((r) => r.role === "user")).toBe(true);
+      expect(result).toHaveLength(1);
+      expect(result[0]!.id).toBe(joaoOliveiraBCD.id);
     });
 
-    test("filters by role with explicit filter", async () => {
+    test("filters by lastName", async () => {
       const result = await findUsers({
-        where: { role: { operator: "eq", value: "admin" } },
+        where: { lastName: "Oliveira" },
       });
 
       expect(result).toHaveLength(2);
-      expect(result.every((r) => r.role === "admin")).toBe(true);
+      expect(result.every((r) => r.lastName === "Oliveira")).toBe(true);
+    });
+
+    test("filters by lastName with explicit filter", async () => {
+      const result = await findUsers({
+        where: { lastName: { operator: "eq", value: "Oliveira" } },
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result.every((r) => r.lastName === "Oliveira")).toBe(true);
     });
 
     test("returns empty for non-existent ID", async () => {
@@ -556,14 +631,14 @@ describe("db/queries/users/findUsers.ts", () => {
     test("returns all when no filters", async () => {
       const result = await findUsers({});
 
-      expect(result).toHaveLength(5);
+      expect(result).toHaveLength(6);
     });
 
     describe("logical operators", () => {
       test("filters with 'and' at root level", async () => {
         const result = await findUsers({
           where: {
-            and: [{ role: "user" }, { id: carlosSilvaAB.id }],
+            and: [{ lastName: "Silva" }, { id: carlosSilvaAB.id }],
           },
         });
 
@@ -574,53 +649,55 @@ describe("db/queries/users/findUsers.ts", () => {
       test("filters with 'or' at root level", async () => {
         const result = await findUsers({
           where: {
-            or: [{ id: carlosSilvaAB.id }, { role: "admin" }],
+            or: [{ id: carlosSilvaAB.id }, { lastName: "Oliveira" }],
           },
         });
 
-        // carlosSilvaAB + anaCostaAdmin + lucasFerreiraAdmin
+        // carlosSilvaAB + joaoOliveiraBCD + pedroOliveira
         expect(result).toHaveLength(3);
         expect(
-          result.every((r) => r.id === carlosSilvaAB.id || r.role === "admin"),
+          result.every(
+            (r) => r.id === carlosSilvaAB.id || r.lastName === "Oliveira",
+          ),
         ).toBe(true);
       });
 
       test("filters with nested 'and' inside 'or'", async () => {
         // Find users that are either:
         // - id = carlosSilvaAB OR
-        // - (admin AND anaCostaAdmin)
+        // - (lastName "Oliveira" AND joaoOliveiraBCD)
         const result = await findUsers({
           where: {
             or: [
               { id: carlosSilvaAB.id },
               {
-                and: [{ role: "admin" }, { id: anaCostaAdmin.id }],
+                and: [{ lastName: "Oliveira" }, { id: joaoOliveiraBCD.id }],
               },
             ],
           },
         });
 
-        // carlosSilvaAB + anaCostaAdmin
+        // carlosSilvaAB + joaoOliveiraBCD
         expect(result).toHaveLength(2);
         expect(
           result.every(
             (r) =>
               r.id === carlosSilvaAB.id ||
-              (r.role === "admin" && r.id === anaCostaAdmin.id),
+              (r.lastName === "Oliveira" && r.id === joaoOliveiraBCD.id),
           ),
         ).toBe(true);
       });
 
       test("filters with nested 'or' inside 'and'", async () => {
         // Find users that are:
-        // - role "user" AND
-        // - (id = carlosSilvaAB OR id = mariaSantosB)
+        // - lastName "Oliveira" AND
+        // - (id = joaoOliveiraBCD OR id = pedroOliveira)
         const result = await findUsers({
           where: {
             and: [
-              { role: "user" },
+              { lastName: "Oliveira" },
               {
-                or: [{ id: carlosSilvaAB.id }, { id: mariaSantosB.id }],
+                or: [{ id: joaoOliveiraBCD.id }, { id: pedroOliveira.id }],
               },
             ],
           },
@@ -630,25 +707,25 @@ describe("db/queries/users/findUsers.ts", () => {
         expect(
           result.every(
             (r) =>
-              r.role === "user" &&
-              (r.id === carlosSilvaAB.id || r.id === mariaSantosB.id),
+              r.lastName === "Oliveira" &&
+              (r.id === joaoOliveiraBCD.id || r.id === pedroOliveira.id),
           ),
         ).toBe(true);
       });
 
       test("filters with deeply nested logical operators (3 levels)", async () => {
         // Find users that are:
-        // - admin OR
-        // - (role "user" AND (id = carlosSilvaAB OR id = joaoOliveiraBCD))
+        // - lastName "Oliveira" OR
+        // - (lastName "Silva" AND (id = carlosSilvaAB OR id = mariaSantosB))
         const result = await findUsers({
           where: {
             or: [
-              { role: "admin" },
+              { lastName: "Oliveira" },
               {
                 and: [
-                  { role: "user" },
+                  { lastName: "Silva" },
                   {
-                    or: [{ id: carlosSilvaAB.id }, { id: joaoOliveiraBCD.id }],
+                    or: [{ id: carlosSilvaAB.id }, { id: mariaSantosB.id }],
                   },
                 ],
               },
@@ -656,60 +733,55 @@ describe("db/queries/users/findUsers.ts", () => {
           },
         });
 
-        // anaCostaAdmin, lucasFerreiraAdmin, carlosSilvaAB, joaoOliveiraBCD
-        expect(result).toHaveLength(4);
+        // joaoOliveiraBCD, pedroOliveira, carlosSilvaAB
+        expect(result).toHaveLength(3);
         expect(
           result.every(
             (r) =>
-              r.role === "admin" ||
-              (r.role === "user" &&
-                (r.id === carlosSilvaAB.id || r.id === joaoOliveiraBCD.id)),
+              r.lastName === "Oliveira" ||
+              (r.lastName === "Silva" &&
+                (r.id === carlosSilvaAB.id || r.id === mariaSantosB.id)),
           ),
         ).toBe(true);
       });
 
       test("filters with explicit operators inside logical operators", async () => {
         // Find users where:
-        // - role = user AND id != carlosSilvaAB
+        // - lastName = Oliveira AND id != joaoOliveiraBCD
         const result = await findUsers({
           where: {
             and: [
-              { role: { operator: "eq", value: "user" } },
-              { id: { operator: "ne", value: carlosSilvaAB.id } },
+              { lastName: { operator: "eq", value: "Oliveira" } },
+              { id: { operator: "ne", value: joaoOliveiraBCD.id } },
             ],
           },
         });
 
-        // mariaSantosB, joaoOliveiraBCD
-        expect(result).toHaveLength(2);
-        expect(
-          result.every(
-            (r) => r.role === "user" && r.id !== carlosSilvaAB.id,
-          ),
-        ).toBe(true);
+        expect(result).toHaveLength(1);
+        expect(result[0]!.id).toBe(pedroOliveira.id);
       });
 
       test("filters with 'or' combining column filters", async () => {
         // Find users where:
-        // - (role "user" AND id = carlosSilvaAB) OR role = admin
+        // - (lastName "Oliveira" AND id = pedroOliveira) OR lastName = Silva
         const result = await findUsers({
           where: {
             or: [
               {
-                and: [{ role: "user" }, { id: carlosSilvaAB.id }],
+                and: [{ lastName: "Oliveira" }, { id: pedroOliveira.id }],
               },
-              { role: "admin" },
+              { lastName: "Silva" },
             ],
           },
         });
 
-        // carlosSilvaAB + anaCostaAdmin + lucasFerreiraAdmin
-        expect(result).toHaveLength(3);
+        // pedroOliveira + carlosSilvaAB
+        expect(result).toHaveLength(2);
         expect(
           result.every(
             (r) =>
-              (r.role === "user" && r.id === carlosSilvaAB.id) ||
-              r.role === "admin",
+              (r.lastName === "Oliveira" && r.id === pedroOliveira.id) ||
+              r.lastName === "Silva",
           ),
         ).toBe(true);
       });
@@ -719,7 +791,7 @@ describe("db/queries/users/findUsers.ts", () => {
           where: { and: [] },
         });
 
-        expect(result).toHaveLength(5);
+        expect(result).toHaveLength(6);
       });
 
       test("returns all when 'or' has empty array", async () => {
@@ -727,102 +799,103 @@ describe("db/queries/users/findUsers.ts", () => {
           where: { or: [] },
         });
 
-        expect(result).toHaveLength(5);
+        expect(result).toHaveLength(6);
       });
 
       test("filters with 'not' at root level", async () => {
-        // Find users whose role is NOT "user"
+        // Find users whose lastName is NOT "Oliveira"
         const result = await findUsers({
-          where: { not: { role: "user" } },
+          where: { not: { lastName: "Oliveira" } },
         });
 
-        // 2 admins
-        expect(result).toHaveLength(2);
-        expect(result.every((r) => r.role !== "user")).toBe(true);
+        expect(result).toHaveLength(4);
+        expect(result.every((r) => r.lastName !== "Oliveira")).toBe(true);
       });
 
       test("filters with 'not' negating multiple column filters", async () => {
-        // Find users that are NOT (role "user" AND carlosSilvaAB)
+        // Find users that are NOT (lastName "Silva" AND carlosSilvaAB)
         const result = await findUsers({
           where: {
             not: {
-              role: "user",
+              lastName: "Silva",
               id: carlosSilvaAB.id,
             },
           },
         });
 
         // All except carlosSilvaAB
-        expect(result).toHaveLength(4);
+        expect(result).toHaveLength(5);
         expect(
           result.every(
-            (r) => !(r.role === "user" && r.id === carlosSilvaAB.id),
+            (r) => !(r.lastName === "Silva" && r.id === carlosSilvaAB.id),
           ),
         ).toBe(true);
       });
 
       test("filters with 'not' inside 'and'", async () => {
-        // Find users with role "user" AND NOT carlosSilvaAB
+        // Find users with lastName "Oliveira" AND NOT joaoOliveiraBCD
         const result = await findUsers({
           where: {
-            and: [{ role: "user" }, { not: { id: carlosSilvaAB.id } }],
+            and: [
+              { lastName: "Oliveira" },
+              { not: { id: joaoOliveiraBCD.id } },
+            ],
           },
         });
 
-        // mariaSantosB, joaoOliveiraBCD
-        expect(result).toHaveLength(2);
+        expect(result).toHaveLength(1);
+        expect(result[0]!.id).toBe(pedroOliveira.id);
+      });
+
+      test("filters with 'not' inside 'or'", async () => {
+        // Find users with lastName "Oliveira" OR NOT lastName "Silva"
+        const result = await findUsers({
+          where: {
+            or: [{ lastName: "Oliveira" }, { not: { lastName: "Silva" } }],
+          },
+        });
+
+        // All except carlosSilvaAB
+        expect(result).toHaveLength(5);
         expect(
           result.every(
-            (r) => r.role === "user" && r.id !== carlosSilvaAB.id,
+            (r) => r.lastName === "Oliveira" || r.lastName !== "Silva",
           ),
         ).toBe(true);
       });
 
-      test("filters with 'not' inside 'or'", async () => {
-        // Find users that are admin OR NOT role "user"
-        const result = await findUsers({
-          where: {
-            or: [{ role: "admin" }, { not: { role: "user" } }],
-          },
-        });
-
-        // 2 admins (the only non-"user" roles)
-        expect(result).toHaveLength(2);
-        expect(
-          result.every((r) => r.role === "admin" || r.role !== "user"),
-        ).toBe(true);
-      });
-
       test("filters with 'not' wrapping 'or'", async () => {
-        // Find users that are NOT (admin OR id = carlosSilvaAB)
+        // Find users that are NOT (lastName "Oliveira" OR id = carlosSilvaAB)
         const result = await findUsers({
           where: {
             not: {
-              or: [{ role: "admin" }, { id: carlosSilvaAB.id }],
+              or: [{ lastName: "Oliveira" }, { id: carlosSilvaAB.id }],
             },
           },
         });
 
-        // mariaSantosB, joaoOliveiraBCD
-        expect(result).toHaveLength(2);
+        // mariaSantosB, anaCostaAdmin, lucasFerreiraAdmin
+        expect(result).toHaveLength(3);
         expect(
-          result.every((r) => r.role !== "admin" && r.id !== carlosSilvaAB.id),
+          result.every(
+            (r) => r.lastName !== "Oliveira" && r.id !== carlosSilvaAB.id,
+          ),
         ).toBe(true);
       });
 
       test("filters with nested 'not' inside 'not'", async () => {
-        // Find users that are NOT (NOT "user") = "user"
+        // Find users that are NOT (NOT "Oliveira") = "Oliveira"
         const result = await findUsers({
           where: {
             not: {
-              not: { role: "user" },
+              not: { lastName: "Oliveira" },
             },
           },
         });
 
-        // Double negation: role "user" records
-        expect(result).toHaveLength(3);
-        expect(result.every((r) => r.role === "user")).toBe(true);
+        // Double negation: lastName "Oliveira" records
+        expect(result).toHaveLength(2);
+        expect(result.every((r) => r.lastName === "Oliveira")).toBe(true);
       });
     });
   });
@@ -847,7 +920,7 @@ describe("db/queries/users/findUsers.ts", () => {
         offset: 2,
       });
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
       expect(result[0]!.id).toBe(allResults[2]!.id);
     });
   });
@@ -858,7 +931,7 @@ describe("db/queries/users/findUsers.ts", () => {
         orderBy: { createdAt: "asc" },
       });
 
-      expect(result).toHaveLength(5);
+      expect(result).toHaveLength(6);
 
       for (let i = 1; i < result.length; i++) {
         const prev = new Date(result[i - 1]!.createdAt).getTime();
@@ -872,7 +945,7 @@ describe("db/queries/users/findUsers.ts", () => {
         orderBy: { createdAt: "desc" },
       });
 
-      expect(result).toHaveLength(5);
+      expect(result).toHaveLength(6);
 
       for (let i = 1; i < result.length; i++) {
         const prev = new Date(result[i - 1]!.createdAt).getTime();

@@ -1,61 +1,39 @@
 import type { AuthUser } from "@blueprint/api-utils";
 import { UserErrorMessage } from "@blueprint/error-utils";
 
-import { createUsers, deleteUsers, findOneUser, updateUsers } from "../../db";
+import {
+  createUsers,
+  deleteUsers,
+  findOneUser,
+  updateUsers,
+  type User,
+} from "../../db";
 import {
   ConflictError,
   DbError,
   ForbiddenError,
   NotFoundError,
-  UnauthorizedError,
 } from "../../shared";
-import {
-  generateAuthTokens,
-  verifyRegistrationToken,
-} from "../../shared/utils/jwt";
-import { consumeOtp } from "../auth/helpers";
-import type {
-  User,
-  UserCreateBody,
-  UserCreateResponse,
-  UserPhoneUpdateBody,
-  UserUpdateBody,
-} from "./model";
+import type { UserCreateBody, UserUpdateBody } from "./model";
 
 /**
- * Creates a new user account using a registration token obtained from OTP
- * verification.
+ * Creates a new user account.
  *
- * @param body - The registration token and profile data.
- * @returns The created user and JWT access + refresh tokens.
- * @throws UnauthorizedError if the registration token is invalid or expired.
- * @throws ConflictError if the phone number is already registered.
+ * @param body - The profile data for the new user.
+ * @returns The created user record.
+ * @throws ConflictError if the email address is already registered.
  */
-export async function createUser(
-  body: UserCreateBody,
-): Promise<UserCreateResponse> {
-  const { registrationToken, firstName, lastName } = body;
+export async function createUser(body: UserCreateBody): Promise<User> {
+  const { firstName, lastName, email } = body;
 
-  const payload = await verifyRegistrationToken({ token: registrationToken });
-  if (!payload) {
-    throw new UnauthorizedError(UserErrorMessage.EXPIRED_REGISTRATION);
-  }
-
-  let created;
+  let created: User | undefined;
   try {
     [created] = await createUsers({
-      data: [
-        {
-          firstName,
-          lastName,
-          phone: payload.id,
-          phoneVerified: true,
-        },
-      ],
+      data: [{ firstName, lastName, email }],
     });
   } catch (error) {
     if (error instanceof DbError && error.message.includes("unique")) {
-      throw new ConflictError(UserErrorMessage.PHONE_ALREADY_EXISTS);
+      throw new ConflictError(UserErrorMessage.EMAIL_ALREADY_EXISTS);
     }
     throw error;
   }
@@ -64,27 +42,16 @@ export async function createUser(
     throw new NotFoundError(UserErrorMessage.USER_NOT_FOUND);
   }
 
-  const tokens = await generateAuthTokens({ userId: created.id });
-
-  return {
-    user: {
-      id: created.id,
-      email: created.email,
-      firstName: created.firstName,
-      lastName: created.lastName,
-      role: created.role,
-    },
-    ...tokens,
-  };
+  return created;
 }
 
 /**
- * Updates a user's mutable profile fields. Phone has its own dedicated
- * OTP-gated endpoint (`PATCH /users/me/phone`).
+ * Updates a user's mutable profile fields.
  *
  * @param options - The update inputs.
  * @returns The updated user record.
  * @throws NotFoundError if the user does not exist.
+ * @throws ConflictError if the email address is already registered.
  */
 export async function updateUser({
   userId,
@@ -95,69 +62,20 @@ export async function updateUser({
   /** The profile fields to patch. */
   body: UserUpdateBody;
 }): Promise<User> {
-  const values: Partial<Pick<User, "firstName" | "lastName">> = {};
+  const values: Partial<Pick<User, "firstName" | "lastName" | "email">> = {};
   if (body.firstName !== undefined) values.firstName = body.firstName;
   if (body.lastName !== undefined) values.lastName = body.lastName;
-
-  const [updated] = await updateUsers({
-    where: { id: userId },
-    values,
-  });
-  if (!updated) {
-    throw new NotFoundError(UserErrorMessage.USER_NOT_FOUND);
-  }
-  return updated;
-}
-
-/**
- * Updates the authenticated user's phone after verifying control of the
- * new number via OTP. The caller must have first requested an OTP for the
- * new phone via `POST /auth/otp/request` and received a request token.
- *
- * The phone uniqueness constraint is enforced both proactively (404 → 409
- * conversion of the underlying DB error) and via an early lookup so the
- * happy path returns a clean 409 without consuming the OTP record.
- *
- * @param options - The update inputs.
- * @param options.userId - The authenticated caller's user id.
- * @param options.body - The new phone, OTP code, and request token.
- * @returns The updated user record.
- * @throws BadRequestError if OTP validation fails.
- * @throws ConflictError if the phone is already registered to another user.
- * @throws NotFoundError if the caller's user record no longer exists.
- */
-export async function updateUserPhone({
-  userId,
-  body,
-}: {
-  /** The authenticated caller's user id. */
-  userId: string;
-  /** The new phone, OTP code, and request token. */
-  body: UserPhoneUpdateBody;
-}): Promise<User> {
-  const existingByPhone = await findOneUser({
-    where: { phone: body.phone },
-    require: false,
-  });
-  if (existingByPhone && existingByPhone.id !== userId) {
-    throw new ConflictError(UserErrorMessage.PHONE_ALREADY_EXISTS);
-  }
-
-  await consumeOtp({
-    phone: body.phone,
-    code: body.code,
-    requestToken: body.requestToken,
-  });
+  if (body.email !== undefined) values.email = body.email;
 
   let updated: User | undefined;
   try {
     [updated] = await updateUsers({
       where: { id: userId },
-      values: { phone: body.phone, phoneVerified: true },
+      values,
     });
   } catch (error) {
     if (error instanceof DbError && error.message.includes("unique")) {
-      throw new ConflictError(UserErrorMessage.PHONE_ALREADY_EXISTS);
+      throw new ConflictError(UserErrorMessage.EMAIL_ALREADY_EXISTS);
     }
     throw error;
   }
@@ -165,7 +83,6 @@ export async function updateUserPhone({
   if (!updated) {
     throw new NotFoundError(UserErrorMessage.USER_NOT_FOUND);
   }
-
   return updated;
 }
 
@@ -179,12 +96,12 @@ export async function deleteUserAccount(userId: string): Promise<void> {
 
 /**
  * Returns the full user record for the given user, scoped to the caller's
- * access. Only the owner of the record or an admin may view it.
+ * access. Only the owner of the record may view it.
  * @param options - The query options.
  * @param options.userId - The id of the user whose record to fetch.
  * @param options.authUser - The authenticated caller.
  * @returns The full user record.
- * @throws ForbiddenError if the caller is neither the owner nor an admin.
+ * @throws ForbiddenError if the caller is not the owner.
  * @throws NotFoundError if the user does not exist.
  */
 export async function getUser({
@@ -196,7 +113,7 @@ export async function getUser({
   /** The authenticated caller. */
   authUser: AuthUser;
 }): Promise<User> {
-  if (authUser.id !== userId && authUser.role !== "admin") {
+  if (authUser.id !== userId) {
     throw new ForbiddenError(UserErrorMessage.ACCESS_DENIED);
   }
 

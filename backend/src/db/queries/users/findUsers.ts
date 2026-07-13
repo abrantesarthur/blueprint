@@ -12,11 +12,11 @@ import type { FindUsersOptions, UsersInclude } from "./types";
  * @example
  * const results = await findUsers({
  *   aggregates: [{ fn: "count", column: "*", as: "total" }],
- *   groupBy: ["city"],
+ *   groupBy: ["lastName"],
  * });
  *
- * // results[0].total → number
- * // results[0].city  → string (all columns present)
+ * // results[0].total    → number
+ * // results[0].lastName → string (all columns present)
  *
  * @returns An array of objects containing all user columns and aggregate values.
  */
@@ -33,13 +33,13 @@ export async function findUsers<K extends keyof User, const A extends string>(
  * @param options
  * @example
  * const results = await findUsers({
- *   attributes: ["firstName", "city"],
+ *   attributes: ["firstName", "lastName"],
  *   aggregates: [{ fn: "count", column: "*", as: "total" }],
- *   groupBy: ["firstName", "city"],
+ *   groupBy: ["firstName", "lastName"],
  * });
  *
  * // results[0].firstName → string
- * // results[0].city      → string
+ * // results[0].lastName  → string
  * // results[0].total     → number
  *
  * @returns An array of objects containing the selected user columns
@@ -65,7 +65,7 @@ export async function findUsers<
  * @param options
  * @example
  * const results = await findUsers({
- *   where: { role: "student" },
+ *   where: { lastName: "Silva" },
  *   orderBy: { firstName: "asc" },
  *   limit: 10,
  * });

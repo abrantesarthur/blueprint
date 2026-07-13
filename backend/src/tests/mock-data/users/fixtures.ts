@@ -8,17 +8,17 @@ export const defaults: Omit<NewUser, RequiredKeys<MockUser>> = {};
 
 /** Interface defining available user fixture names. */
 export interface UserFixtures {
-  /** Regular user A - user role. */
+  /** Regular user A. */
   carlosSilvaAB: MockUser;
-  /** Regular user B - user role. */
+  /** Regular user B. */
   mariaSantosB: MockUser;
-  /** Regular user C - user role. */
+  /** Regular user C - has no email. */
   joaoOliveiraBCD: MockUser;
-  /** Regular user D - user role. */
+  /** Regular user D - shares the "Oliveira" last name with user C. */
   pedroOliveira: MockUser;
-  /** Admin user A - admin role. */
+  /** Regular user E. */
   anaCostaAdmin: MockUser;
-  /** Admin user B - admin role (for rate limit isolation tests). */
+  /** Regular user F (for rate limit isolation tests). */
   lucasFerreiraAdmin: MockUser;
 }
 
@@ -29,47 +29,35 @@ export const fixtures: UserFixtures = {
     email: "user-a@test.com",
     firstName: "Carlos",
     lastName: "Silva",
-    phone: "+5511999999901",
-    role: "user",
   },
   mariaSantosB: {
     id: "550e8400-e29b-41d4-a716-446655440002",
     email: "user-b@test.com",
     firstName: "Maria",
     lastName: "Santos",
-    phone: "+5511999999902",
-    role: "user",
   },
   joaoOliveiraBCD: {
     id: "550e8400-e29b-41d4-a716-446655440023",
-    email: "user-c@test.com",
+    email: null,
     firstName: "Joao",
     lastName: "Oliveira",
-    phone: "+5512999999904",
-    role: "user",
   },
   pedroOliveira: {
     id: "550e8400-e29b-41d4-a716-446655440003",
     email: "user-d@test.com",
     firstName: "Pedro",
     lastName: "Oliveira",
-    phone: "+5511999999903",
-    role: "user",
   },
   anaCostaAdmin: {
     id: "550e8400-e29b-41d4-a716-446655440004",
-    email: "admin@test.com",
+    email: "user-e@test.com",
     firstName: "Ana",
     lastName: "Costa",
-    phone: "+5511999999904",
-    role: "admin",
   },
   lucasFerreiraAdmin: {
     id: "550e8400-e29b-41d4-a716-446655440005",
-    email: "admin-b@test.com",
+    email: "user-f@test.com",
     firstName: "Lucas",
     lastName: "Ferreira",
-    phone: "+5511999999905",
-    role: "admin",
   },
 };

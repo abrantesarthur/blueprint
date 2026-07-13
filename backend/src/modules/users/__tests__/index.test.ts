@@ -1,4 +1,3 @@
-import { hashSha256 } from "@blueprint/crypto-utils";
 import {
   afterAll,
   afterEach,
@@ -8,20 +7,8 @@ import {
   test,
 } from "bun:test";
 
-import {
-  createOtpCode,
-  createUsers,
-  deleteOtpCodes,
-  deleteUsers,
-  findOneOtpCode,
-  findOneUser,
-  updateUsers,
-} from "../../../db";
+import { deleteUsers, findOneUser } from "../../../db";
 import { RATE_LIMITS } from "../../../shared/middleware/rateLimit";
-import {
-  generateAuthTokens,
-  generateRegistrationToken,
-} from "../../../shared/utils/jwt";
 import { createTestApp } from "../../../tests/app";
 import { authHeaders, generateTestAccessTokens } from "../../../tests/auth";
 import {
@@ -32,38 +19,32 @@ import {
 } from "../../../tests/helpers";
 import type { MockUser } from "../../../tests/mock-data/users/types";
 import { agent } from "../../../tests/setup";
-import type { UserCreateResponse, UserResponse } from "../model";
+import type { SuccessResponse } from "../../shared/schema";
+import type { UserResponse } from "../model";
 
 describe("users/index.ts", () => {
   let app: ReturnType<typeof createTestApp>;
 
   let primaryUser: MockUser;
   let otherUser: MockUser;
-  let adminUser: MockUser;
 
   let primaryToken: string;
   let otherToken: string;
-  let adminToken: string;
 
   beforeAll(async () => {
     app = createTestApp();
 
-    await agent.seed({
-      users: ["carlosSilvaAB", "mariaSantosB", "anaCostaAdmin"],
-    });
+    await agent.seed({ users: ["carlosSilvaAB", "mariaSantosB"] });
 
     primaryUser = agent.getFixture({ user: "carlosSilvaAB" });
     otherUser = agent.getFixture({ user: "mariaSantosB" });
-    adminUser = agent.getFixture({ user: "anaCostaAdmin" });
 
     const tokens = await generateTestAccessTokens({
       primaryToken: primaryUser.id,
       otherToken: otherUser.id,
-      adminToken: adminUser.id,
     });
     primaryToken = tokens.primaryToken;
     otherToken = tokens.otherToken;
-    adminToken = tokens.adminToken;
   });
 
   afterAll(async () => {
@@ -83,160 +64,82 @@ describe("users/index.ts", () => {
       );
     });
 
-    test("returns 200 with the new user and auth tokens on the happy path", async () => {
-      const phone = "+5511986666666";
-      const { registrationToken } = await generateRegistrationToken({ phone });
-
-      const { status, body } = await app.handle<UserCreateResponse>(
+    test("returns 200 with the new user record on the happy path", async () => {
+      const { status, body } = await app.handle<UserResponse>(
         new Request(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            registrationToken,
             firstName: "Alice",
             lastName: "Silva",
+            email: "alice.silva@test.com",
           }),
         }),
       );
 
       expect(status).toBe(200);
-      expect(body.user).toMatchObject({
+      expect(body).toMatchObject({
         firstName: "Alice",
         lastName: "Silva",
-        role: "user",
+        email: "alice.silva@test.com",
       });
-      expect(body.user.id).toBeString();
-      expect(body.accessToken).toBeString();
-      expect(body.refreshToken).toBeString();
-      expect(body.accessTokenExpiresIn).toBeNumber();
-      expect(body.refreshTokenExpiresIn).toBeNumber();
+      expect(body.id).toBeString();
+      expect(body.createdAt).toBeString();
+      expect(new Date(body.createdAt).getTime()).not.toBeNaN();
+      expect(body).not.toHaveProperty("updatedAt");
 
-      createdUserIds.push(body.user.id);
-    });
-
-    test("returns 401 when the registration token is malformed", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registrationToken: "not-a-valid-token",
-            firstName: "Bob",
-            lastName: "Jones",
-          }),
-        }),
-      );
-
-      response.expectStatus(401).expectBody({
-        code: "UNAUTHORIZED",
-        error: "Invalid or expired registration token",
-      });
-    });
-
-    test("returns 401 when an access token is used instead of a registration token", async () => {
-      const { accessToken } = await generateAuthTokens({
-        userId: primaryUser.id,
-      });
-
-      const response = await app.handle(
-        new Request(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registrationToken: accessToken,
-            firstName: "Bob",
-            lastName: "Jones",
-          }),
-        }),
-      );
-
-      response.expectStatus(401).expectBody({
-        code: "UNAUTHORIZED",
-        error: "Invalid or expired registration token",
-      });
-    });
-
-    test("returns 409 when the verified phone is already registered", async () => {
-      const { registrationToken } = await generateRegistrationToken({
-        phone: primaryUser.phone,
-      });
-
-      const response = await app.handle(
-        new Request(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registrationToken,
-            firstName: "Charlie",
-            lastName: "Brown",
-          }),
-        }),
-      );
-
-      response.expectStatus(409).expectBody({
-        code: "CONFLICT",
-        error: "A user with this phone number already exists",
-      });
-    });
-
-    test("returns 422 when registrationToken is missing", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: "David",
-            lastName: "Lee",
-          }),
-        }),
-      );
-
-      response.expectStatus(422).expectBody({
-        code: "VALIDATION_ERROR",
-      });
+      createdUserIds.push(body.id);
     });
 
     test("returns 422 when firstName is too short", async () => {
-      const { registrationToken } = await generateRegistrationToken({
-        phone: "+5511983333333",
-      });
-
       const response = await app.handle(
         new Request(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            registrationToken,
-            firstName: "A",
-            lastName: "Silva",
-          }),
+          body: JSON.stringify({ firstName: "A", lastName: "Silva" }),
         }),
       );
 
       response.expectStatus(422).expectBody({
         code: "VALIDATION_ERROR",
+        error:
+          "The 'firstName' property has an invalid value. Make sure it has an appropriate length and format.",
       });
     });
 
-    test("returns 422 when firstName contains digits", async () => {
-      const { registrationToken } = await generateRegistrationToken({
-        phone: "+5511984444444",
-      });
+    test("returns 422 when lastName contains digits", async () => {
+      const response = await app.handle(
+        new Request(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstName: "Frank", lastName: "Miller99" }),
+        }),
+      );
 
+      response.expectStatus(422).expectBody({
+        code: "VALIDATION_ERROR",
+        error:
+          "The 'lastName' property has an invalid value. Make sure it has an appropriate length and format.",
+      });
+    });
+
+    test("returns 422 when email format is invalid", async () => {
       const response = await app.handle(
         new Request(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            registrationToken,
-            firstName: "Frank123",
+            firstName: "Frank",
             lastName: "Miller",
+            email: "not-an-email",
           }),
         }),
       );
 
       response.expectStatus(422).expectBody({
         code: "VALIDATION_ERROR",
+        error:
+          "The 'email' property has an invalid value. Make sure it has an appropriate length and format.",
       });
     });
 
@@ -263,42 +166,27 @@ describe("users/index.ts", () => {
         );
 
         for (let i = 0; i < effectiveMax; i++) {
-          const phone = `+55119${String(i).padStart(8, "0")}`;
-          const { registrationToken } = await generateRegistrationToken({
-            phone,
-          });
-
-          const response = await app.handle<UserCreateResponse>(
+          const response = await app.handle<UserResponse>(
             new Request(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                registrationToken,
-                firstName: "Rate",
-                lastName: "Limited",
-              }),
+              body: JSON.stringify({ firstName: "Rate", lastName: "Limited" }),
             }),
           );
 
+          if (response.status === 200) {
+            createdUserIds.push(response.body.id);
+          }
           if (i < effectiveMax - 1) {
             expect(response.status).toBe(200);
-            createdUserIds.push(response.body.user.id);
           }
         }
-
-        const { registrationToken } = await generateRegistrationToken({
-          phone: "+5511979999999",
-        });
 
         const response = await app.handle(
           new Request(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              registrationToken,
-              firstName: "Over",
-              lastName: "Limit",
-            }),
+            body: JSON.stringify({ firstName: "Over", lastName: "Limit" }),
           }),
         );
 
@@ -338,7 +226,7 @@ describe("users/index.ts", () => {
       });
     });
 
-    test("returns 200 with the caller's full user record when fetching self", async () => {
+    test("returns 200 with the caller's user record when fetching self", async () => {
       const dbUser = await findOneUser({ where: { id: primaryUser.id } });
 
       const { status, body } = await app.handle<UserResponse>(
@@ -354,45 +242,8 @@ describe("users/index.ts", () => {
         email: dbUser.email,
         firstName: dbUser.firstName,
         lastName: dbUser.lastName,
-        role: dbUser.role,
-        phone: dbUser.phone,
+        createdAt: dbUser.createdAt.toISOString(),
       });
-      expect(new Date(body.createdAt)).toBeInstanceOf(Date);
-    });
-
-    test("returns 200 when admin fetches another user's record", async () => {
-      const { status, body } = await app.handle<UserResponse>(
-        new Request(url(primaryUser.id), {
-          method: "GET",
-          headers: authHeaders(adminToken),
-        }),
-      );
-
-      expect(status).toBe(200);
-      expect(body.id).toBe(primaryUser.id);
-    });
-
-    test("returns 403 when a non-admin fetches another user's record", async () => {
-      const response = await app.handle(
-        new Request(url(primaryUser.id), {
-          method: "GET",
-          headers: authHeaders(otherToken),
-        }),
-      );
-      response.expectStatus(403);
-    });
-
-    test("response excludes sensitive fields (phoneVerified, otpRequestedAt, updatedAt)", async () => {
-      const { status, body } = await app.handle<Record<string, unknown>>(
-        new Request(url(primaryUser.id), {
-          method: "GET",
-          headers: authHeaders(primaryToken),
-        }),
-      );
-
-      expect(status).toBe(200);
-      expect(body).not.toHaveProperty("phoneVerified");
-      expect(body).not.toHaveProperty("otpRequestedAt");
       expect(body).not.toHaveProperty("updatedAt");
     });
   });
@@ -454,6 +305,24 @@ describe("users/index.ts", () => {
       });
     });
 
+    test("returns 422 when email format is invalid", async () => {
+      const response = await app.handle(
+        new Request(url, {
+          method: "PATCH",
+          headers: {
+            ...authHeaders(primaryToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: "not-an-email" }),
+        }),
+      );
+      response.expectStatus(422).expectBody({
+        code: "VALIDATION_ERROR",
+        error:
+          "The 'email' property has an invalid value. Make sure it has an appropriate length and format.",
+      });
+    });
+
     test("successfully updates allowed fields and returns the user record", async () => {
       const { status, body } = await app.handle<UserResponse>(
         new Request(url, {
@@ -472,198 +341,11 @@ describe("users/index.ts", () => {
       expect(status).toBe(200);
       expect(body).toMatchObject({
         id: primaryUser.id,
+        email: primaryUser.email,
         firstName: "Updated",
         lastName: "Name",
       });
-    });
-  });
-
-  describe("PATCH /api/users/me/phone", () => {
-    const url = "http://localhost/api/users/me/phone";
-
-    const KNOWN_CODE = "525252";
-    const KNOWN_REQUEST_TOKEN = "0a".repeat(32);
-
-    const phonesToCleanup: string[] = [];
-
-    afterAll(async () => {
-      await Promise.all(
-        phonesToCleanup.map((phone) =>
-          deleteOtpCodes({ where: { phone } }).catch(() => {}),
-        ),
-      );
-    });
-
-    /**
-     * Seeds an OTP record for a phone with known plaintext code and token.
-     * @param phone - The phone number to seed.
-     */
-    async function seedOtp(phone: string): Promise<void> {
-      phonesToCleanup.push(phone);
-      await createOtpCode({
-        data: {
-          phone,
-          code: hashSha256(KNOWN_CODE),
-          requestToken: hashSha256(KNOWN_REQUEST_TOKEN),
-          expiresAt: new Date(Date.now() + 300_000),
-        },
-        onConflictDoUpdate: {
-          target: "phone",
-          set: {
-            code: hashSha256(KNOWN_CODE),
-            requestToken: hashSha256(KNOWN_REQUEST_TOKEN),
-            expiresAt: new Date(Date.now() + 300_000),
-            attempts: 0,
-          },
-        },
-      });
-    }
-
-    test("returns 401 (Unauthorized) when no auth token provided", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: "+5511955551111",
-            code: KNOWN_CODE,
-            requestToken: KNOWN_REQUEST_TOKEN,
-          }),
-        }),
-      );
-      response
-        .expectStatus(401)
-        .expectBody({ error: "Authentication required" });
-    });
-
-    test("returns 422 (Validation) when phone format is invalid", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders(primaryToken),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phone: "11912345678",
-            code: KNOWN_CODE,
-            requestToken: KNOWN_REQUEST_TOKEN,
-          }),
-        }),
-      );
-      response.expectStatus(422).expectBody({
-        code: "VALIDATION_ERROR",
-        error:
-          "The 'phone' property has an invalid value. Make sure it has an appropriate length and format.",
-      });
-    });
-
-    test("returns 422 (Validation) when code is not 6 chars", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders(primaryToken),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phone: "+5511955552222",
-            code: "12345",
-            requestToken: KNOWN_REQUEST_TOKEN,
-          }),
-        }),
-      );
-      response.expectStatus(422).expectBody({
-        code: "VALIDATION_ERROR",
-        error:
-          "The 'code' property has an invalid value. Make sure it has an appropriate length and format.",
-      });
-    });
-
-    test("returns 422 (Validation) when requestToken is wrong length", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders(primaryToken),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phone: "+5511955552222",
-            code: KNOWN_CODE,
-            requestToken: "abc",
-          }),
-        }),
-      );
-      response.expectStatus(422).expectBody({
-        code: "VALIDATION_ERROR",
-        error:
-          "The 'requestToken' property has an invalid value. Make sure it has an appropriate length and format.",
-      });
-    });
-
-    test("returns 422 (Validation) when phone field is missing", async () => {
-      const response = await app.handle(
-        new Request(url, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders(primaryToken),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            code: KNOWN_CODE,
-            requestToken: KNOWN_REQUEST_TOKEN,
-          }),
-        }),
-      );
-      response.expectStatus(422).expectBody({
-        code: "VALIDATION_ERROR",
-        error:
-          "The 'phone' property has an invalid value. Make sure it has an appropriate length and format.",
-      });
-    });
-
-    test("successfully updates phone and returns 200 with the updated user", async () => {
-      const userBefore = await findOneUser({
-        where: { id: primaryUser.id },
-        require: false,
-      });
-      expect(userBefore).toBeDefined();
-
-      const newPhone = "+5511955553333";
-      await seedOtp(newPhone);
-
-      const { status, body } = await app.handle<UserResponse>(
-        new Request(url, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders(primaryToken),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            phone: newPhone,
-            code: KNOWN_CODE,
-            requestToken: KNOWN_REQUEST_TOKEN,
-          }),
-        }),
-      );
-
-      expect(status).toBe(200);
-      expect(body).toMatchObject({ id: primaryUser.id, phone: newPhone });
-
-      const otp = await findOneOtpCode({
-        where: { phone: newPhone },
-        require: false,
-      });
-      expect(otp).toBeNull();
-
-      await updateUsers({
-        where: { id: primaryUser.id },
-        values: {
-          phone: userBefore!.phone,
-          phoneVerified: userBefore!.phoneVerified,
-        },
-      });
+      expect(body.createdAt).toBeString();
     });
   });
 
@@ -684,7 +366,7 @@ describe("users/index.ts", () => {
       });
       expect(userBefore).toBeDefined();
 
-      const { status, body } = await app.handle<{ success: boolean }>(
+      const { status, body } = await app.handle<SuccessResponse>(
         new Request("http://localhost/api/users/me", {
           method: "DELETE",
           headers: authHeaders(primaryToken),
@@ -692,7 +374,7 @@ describe("users/index.ts", () => {
       );
 
       expect(status).toBe(200);
-      expect(body).toMatchObject({ success: true });
+      expect(body).toEqual({ success: true });
 
       const userAfter = await findOneUser({
         where: { id: primaryUser.id },
@@ -700,23 +382,7 @@ describe("users/index.ts", () => {
       });
       expect(userAfter).toBeNull();
 
-      // Restore so subsequent describe blocks still see the seeded user.
-      await createUsers({
-        data: [
-          {
-            id: userBefore!.id,
-            email: userBefore!.email,
-            firstName: userBefore!.firstName,
-            lastName: userBefore!.lastName,
-            phone: userBefore!.phone,
-            phoneVerified: userBefore!.phoneVerified,
-            role: userBefore!.role,
-            otpRequestedAt: userBefore!.otpRequestedAt,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ],
-      });
+      await agent.seed({ users: ["carlosSilvaAB"] });
     });
   });
 
@@ -734,8 +400,14 @@ describe("users/index.ts", () => {
       originalTrustProxy = enableRateLimitingForTests();
     });
 
-    afterAll(() => {
+    afterAll(async () => {
       disableRateLimitingForTests(originalTrustProxy);
+      await deleteUsers({
+        where: {
+          id: { operator: "in", value: [primaryUser.id, otherUser.id] },
+        },
+      });
+      await agent.seed({ users: ["carlosSilvaAB", "mariaSantosB"] });
     });
 
     afterEach(() => {
@@ -782,19 +454,6 @@ describe("users/index.ts", () => {
       expectRateLimited(response);
     });
 
-    test("DELETE /me returns 429 when limit exceeded", async () => {
-      // Exhaust the rate limit using PATCH requests first
-      // (can't call DELETE many times since it deletes the user).
-      for (let i = 0; i < EFFECTIVE_MAX; i++) {
-        const response = await patchMe(primaryToken);
-        expect(response.status).toBe(200);
-      }
-
-      // DELETE shares the bucket with PATCH so it must be rate limited.
-      const response = await deleteMe(primaryToken);
-      expectRateLimited(response);
-    });
-
     test("rate limits are isolated per user", async () => {
       for (let i = 0; i < EFFECTIVE_MAX; i++) {
         const response = await patchMe(primaryToken);
@@ -814,6 +473,8 @@ describe("users/index.ts", () => {
         expect(response.status).toBe(200);
       }
 
+      // DELETE shares the bucket with PATCH so it must be rate limited
+      // (and the user must not be deleted).
       const response = await deleteMe(primaryToken);
       expectRateLimited(response);
     });

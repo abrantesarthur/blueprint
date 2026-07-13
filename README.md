@@ -1,6 +1,6 @@
 # Blueprint Monorepo
 
-A reusable full-stack monorepo template: Bun + Elysia + PostgreSQL (Drizzle ORM) backend, Next.js frontend scaffold, and shared utility packages. It ships with an example vertical slice — phone-OTP `auth` and `users` profile modules — that demonstrates the repo patterns end-to-end (schema → queries → module → fixtures → seeders → tests) with a green test suite.
+A reusable full-stack monorepo template: Bun + Elysia + PostgreSQL (Drizzle ORM) backend, Next.js frontend scaffold, and shared utility packages. It ships with an example vertical slice — a minimal `users` CRUD module — that demonstrates the repo patterns end-to-end (schema → queries → module → fixtures → seeders → tests) with a green test suite.
 
 ## Workspaces
 
@@ -12,8 +12,7 @@ A reusable full-stack monorepo template: Bun + Elysia + PostgreSQL (Drizzle ORM)
 
 ## What's Included
 
-- **Example vertical slice**: `users` entity + `otpCodes` entity + phone-OTP `auth` module + `users` profile module, with fixtures, seeders, and full test coverage.
-- **OTP delivery stub**: `backend/src/integrations/otp/` logs codes in development and throws in production until you plug in a real provider (email/SMS).
+- **Example vertical slice**: `users` entity + minimal `users` CRUD module (create, fetch, update, delete), with JWT bearer-token auth middleware, fixtures, seeders, and full test coverage.
 - **Guardrails**: pre-commit hooks, CI workflow, ESLint (JSDoc enforcement), custom validators (schema naming, query imports, db usage, SQL safety, test-only markers), and knip dead-code detection.
 - **Conventions**: see [CLAUDE.md](./CLAUDE.md) for the full set of repo conventions.
 
@@ -44,9 +43,8 @@ bun dev
 1. Rename the `@blueprint/*` package scope and the `blueprint-monorepo` name to your project's.
 2. Set your `BWS_ORGANIZATION_ID` (and Bitwarden secrets) or swap in your own secrets provider.
 3. Replace the `<replace-me>` placeholders in `maestro.yaml` (domain, project name, image, Cloudflare account, Bitwarden ids) to configure deployment.
-4. Replace the example `users`/`auth` slice with your own domain entities, following the same schema → queries → module → fixtures → seeders → tests pattern.
-5. Plug a real OTP provider into `backend/src/integrations/otp/` (or remove OTP auth entirely).
-6. Regenerate database migrations: `cd backend && bun run db:generate`.
+4. Replace the example `users` slice with your own domain entities, following the same schema → queries → module → fixtures → seeders → tests pattern.
+5. Regenerate database migrations: `cd backend && bun run db:generate`.
 
 ## Structure
 

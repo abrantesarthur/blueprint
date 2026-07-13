@@ -1,7 +1,7 @@
 /**
  * Computes a SHA-256 hash of the given input and returns it as a hex string.
- * Used for OTP codes and request tokens — neither is stored in plaintext, so
- * a database leak does not expose usable values.
+ * Useful for values that should never be stored in plaintext (e.g. one-time
+ * codes or tokens), so a database leak does not expose usable values.
  * @param input - The plaintext string to hash.
  * @returns The 64-character lowercase hex digest.
  */

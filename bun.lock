@@ -24,8 +24,6 @@
       "dependencies": {
         "@blueprint/api-utils": "workspace:*",
         "@blueprint/async-arg-utils": "workspace:*",
-        "@blueprint/crypto-utils": "workspace:*",
-        "@blueprint/enum-utils": "workspace:*",
         "@blueprint/error-utils": "workspace:*",
         "@blueprint/script-utils": "workspace:*",
         "@blueprint/time-utils": "workspace:*",
@@ -73,7 +71,6 @@
       "version": "0.1.0",
       "dependencies": {
         "@blueprint/date-utils": "workspace:*",
-        "@blueprint/enum-utils": "workspace:*",
         "@sinclair/typebox": "^0.34.0",
       },
     },

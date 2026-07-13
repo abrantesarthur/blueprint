@@ -96,10 +96,8 @@ describe("db/migrate.ts", () => {
         const conn = new SQL(urlFor(database));
         try {
           const tables = await conn`
-            SELECT to_regclass('public.otp_codes') IS NOT NULL AS otp_codes,
-                   to_regclass('public.users')     IS NOT NULL AS users
+            SELECT to_regclass('public.users') IS NOT NULL AS users
           `;
-          expect(tables[0].otp_codes).toBe(true);
           expect(tables[0].users).toBe(true);
 
           const applied =

@@ -1,12 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { eq, getTableColumns, getTableName } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
 
-import type { MockOtpCode } from "../../../../tests/mock-data/otpCodes/types";
 import type { MockUser } from "../../../../tests/mock-data/users/types";
 import { agent } from "../../../../tests/setup";
-import { otpCodes, users } from "../../../schema";
+import { users } from "../../../schema";
 import { findAll as untypedFindAll } from "../findAll";
 
 // Test-only alias: forces `any` typing on findAll so rows expose plain
@@ -15,21 +12,16 @@ import { findAll as untypedFindAll } from "../findAll";
 // is losing compile-time `@ts-expect-error` checks inside the test bodies.
 const findAll: any = untypedFindAll;
 
-/** Join condition reused across include tests (no FK links the two tables). */
-const usersToOtpCodes = eq(users.phone, otpCodes.phone);
-
-/** Join condition for queries rooted at otp_codes. */
-const otpCodesToUsers = eq(otpCodes.phone, users.phone);
-
 describe("db/queries/utils/findAll.ts", () => {
   let carlosSilvaAB: MockUser;
   let mariaSantosB: MockUser;
   let joaoOliveiraBCD: MockUser;
+  let pedroOliveira: MockUser;
   let anaCostaAdmin: MockUser;
-  let otpCodeC: MockOtpCode;
-  let otpCodeD: MockOtpCode;
 
   beforeAll(async () => {
+    // Last-name groups: Silva (1), Santos (1), Oliveira (2), Costa (1),
+    // Ferreira (1) — 5 groups. joaoOliveiraBCD is the only null email.
     await agent.seed({
       users: [
         "carlosSilvaAB",
@@ -39,24 +31,13 @@ describe("db/queries/utils/findAll.ts", () => {
         "anaCostaAdmin",
         "lucasFerreiraAdmin",
       ],
-      // Every user except joaoOliveiraBCD has an OTP code.
-      // Attempts distribution: 0 → otpCodeA/otpCodeC/expiredOtpCode,
-      // 1 → otpCodeD, 3 → otpCodeB.
-      otpCodes: [
-        "otpCodeA",
-        "otpCodeB",
-        "otpCodeC",
-        "otpCodeD",
-        "expiredOtpCode",
-      ],
     });
 
     carlosSilvaAB = agent.getFixture({ user: "carlosSilvaAB" });
     mariaSantosB = agent.getFixture({ user: "mariaSantosB" });
     joaoOliveiraBCD = agent.getFixture({ user: "joaoOliveiraBCD" });
+    pedroOliveira = agent.getFixture({ user: "pedroOliveira" });
     anaCostaAdmin = agent.getFixture({ user: "anaCostaAdmin" });
-    otpCodeC = agent.getFixture({ otpCode: "otpCodeC" });
-    otpCodeD = agent.getFixture({ otpCode: "otpCodeD" });
   });
 
   afterAll(async () => {
@@ -78,9 +59,9 @@ describe("db/queries/utils/findAll.ts", () => {
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
         id: carlosSilvaAB.id,
+        email: carlosSilvaAB.email,
         firstName: carlosSilvaAB.firstName,
-        phone: carlosSilvaAB.phone,
-        role: "user",
+        lastName: carlosSilvaAB.lastName,
       });
       expect(results[0]!.createdAt).toBeInstanceOf(Date);
       expect(results[0]!.updatedAt).toBeInstanceOf(Date);
@@ -100,14 +81,14 @@ describe("db/queries/utils/findAll.ts", () => {
     test("returns multiple columns", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["id", "role", "phone"],
+        attributes: ["id", "email", "firstName"],
         where: { id: carlosSilvaAB.id },
       });
       expect(results).toEqual([
         {
           id: carlosSilvaAB.id,
-          role: "user",
-          phone: carlosSilvaAB.phone,
+          email: carlosSilvaAB.email,
+          firstName: carlosSilvaAB.firstName,
         },
       ]);
     });
@@ -115,13 +96,13 @@ describe("db/queries/utils/findAll.ts", () => {
     test("returns aggregate with regular column", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        orderBy: { role: "asc" },
+        groupBy: ["lastName"],
+        orderBy: { lastName: "asc" },
       });
-      expect(results).toContainEqual({ role: "user", total: 4 });
-      expect(results).toContainEqual({ role: "admin", total: 2 });
+      expect(results).toContainEqual({ lastName: "Oliveira", total: 2 });
+      expect(results).toContainEqual({ lastName: "Silva", total: 1 });
     });
 
     test("returns attributes with limit and offset", async () => {
@@ -138,12 +119,10 @@ describe("db/queries/utils/findAll.ts", () => {
     test("returns nullable columns as null when not set", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["id", "otpRequestedAt"],
-        where: { id: carlosSilvaAB.id },
+        attributes: ["id", "email"],
+        where: { id: joaoOliveiraBCD.id },
       });
-      expect(results).toEqual([
-        { id: carlosSilvaAB.id, otpRequestedAt: null },
-      ]);
+      expect(results).toEqual([{ id: joaoOliveiraBCD.id, email: null }]);
     });
 
     test("returns timestamp columns", async () => {
@@ -164,8 +143,8 @@ describe("db/queries/utils/findAll.ts", () => {
       await expect(
         findAll({
           table: users,
-          attributes: ["phone"],
-          groupBy: ["role"],
+          attributes: ["firstName"],
+          groupBy: ["lastName"],
         }),
       ).rejects.toThrow();
     });
@@ -173,7 +152,7 @@ describe("db/queries/utils/findAll.ts", () => {
     test("does not throw if selecting any attributes when grouping by primary key", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["id", "phone", "role"],
+        attributes: ["id", "email", "firstName"],
         groupBy: ["id"],
         where: { id: carlosSilvaAB.id },
       });
@@ -184,38 +163,38 @@ describe("db/queries/utils/findAll.ts", () => {
     test("does not throw if selecting grouped attribute", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
-        groupBy: ["role"],
+        attributes: ["lastName"],
+        groupBy: ["lastName"],
       });
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(5);
     });
 
     test("groups by multiple columns", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role", "phoneVerified"],
-        groupBy: ["role", "phoneVerified"],
+        attributes: ["lastName", "firstName"],
+        groupBy: ["lastName", "firstName"],
       });
-      // Combinations seeded: user + false (4), admin + false (2).
-      expect(results).toHaveLength(2);
+      // Every (lastName, firstName) pair is distinct across the 6 users.
+      expect(results).toHaveLength(6);
     });
 
     test("groups with where filter", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
-        groupBy: ["role"],
+        attributes: ["lastName"],
+        groupBy: ["lastName"],
         where: { id: carlosSilvaAB.id },
       });
       expect(results).toHaveLength(1);
-      expect(results[0]).toMatchObject({ role: "user" });
+      expect(results[0]).toMatchObject({ lastName: "Silva" });
     });
 
     test("groups with limit", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
-        groupBy: ["role"],
+        attributes: ["lastName"],
+        groupBy: ["lastName"],
         limit: 1,
       });
       expect(results).toHaveLength(1);
@@ -224,20 +203,21 @@ describe("db/queries/utils/findAll.ts", () => {
     test("groups with offset", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
-        groupBy: ["role"],
-        orderBy: { role: "asc" },
-        offset: 1,
+        attributes: ["lastName"],
+        groupBy: ["lastName"],
+        orderBy: { lastName: "asc" },
+        offset: 4,
       });
       expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ lastName: "Silva" });
     });
 
     test("groups with descending order", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         orderBy: { total: "desc" },
       });
       expect(results[0]!.total).toBeGreaterThanOrEqual(results[1]!.total);
@@ -247,57 +227,58 @@ describe("db/queries/utils/findAll.ts", () => {
       test("counts all rows grouped by some column", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
+          groupBy: ["lastName"],
         });
-        expect(results).toContainEqual({ role: "user", total: 4 });
-        expect(results).toContainEqual({ role: "admin", total: 2 });
+        expect(results).toContainEqual({ lastName: "Oliveira", total: 2 });
+        expect(results).toContainEqual({ lastName: "Costa", total: 1 });
       });
 
       test("counts with where filter", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
-          where: { role: "user" },
+          groupBy: ["lastName"],
+          where: { lastName: "Oliveira" },
         });
-        expect(results).toEqual([{ role: "user", total: 4 }]);
+        expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
       });
 
       test("counts with limit", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
+          groupBy: ["lastName"],
           orderBy: { total: "desc" },
           limit: 1,
         });
         expect(results).toHaveLength(1);
-        expect(results[0]!.total).toBe(4);
+        expect(results[0]!.total).toBe(2);
       });
 
       test("counts with offset", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
+          groupBy: ["lastName"],
           orderBy: { total: "desc" },
           offset: 1,
         });
-        expect(results).toHaveLength(1);
-        expect(results[0]!.total).toBeLessThan(4);
+        // Skips the Oliveira group (2); the 4 remaining groups all have 1.
+        expect(results).toHaveLength(4);
+        expect(results.every((r: any) => r.total === 1)).toBe(true);
       });
 
       test("counts with descending order", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
+          groupBy: ["lastName"],
           orderBy: { total: "desc" },
         });
         for (let i = 1; i < results.length; i++) {
@@ -308,36 +289,38 @@ describe("db/queries/utils/findAll.ts", () => {
       test("uses multiple aggregates with different aliases", async () => {
         const results = await findAll({
           table: users,
-          attributes: ["role"],
+          attributes: ["lastName"],
           aggregates: [
             { fn: "count", column: "*", as: "total" },
-            { fn: "countDistinct", column: "phoneVerified", as: "distinct" },
+            { fn: "countDistinct", column: "email", as: "distinct" },
           ],
-          groupBy: ["role"],
+          groupBy: ["lastName"],
         });
-        const regular = results.find((r: any) => r.role === "user");
-        expect(regular!.total).toBe(4);
-        expect(regular!.distinct).toBe(1);
+        const oliveira = results.find((r: any) => r.lastName === "Oliveira");
+        // 2 Oliveiras, but joaoOliveiraBCD's null email is not counted.
+        expect(oliveira!.total).toBe(2);
+        expect(oliveira!.distinct).toBe(1);
       });
 
-      test("computes avg aggregate over a numeric column", async () => {
+      test("computes countDistinct over the whole table without groupBy", async () => {
         const results = await findAll({
-          table: otpCodes,
+          table: users,
           attributes: [],
-          aggregates: [{ fn: "avg", column: "attempts", as: "avgAttempts" }],
+          aggregates: [
+            { fn: "countDistinct", column: "email", as: "uniqueEmails" },
+            { fn: "countDistinct", column: "lastName", as: "uniqueLastNames" },
+          ],
         });
-        // (0 + 3 + 0 + 1 + 0) / 5 = 0.8
-        expect(results).toEqual([{ avgAttempts: 0.8 }]);
+        // 5 non-null distinct emails and 5 distinct last names.
+        expect(results).toEqual([{ uniqueEmails: 5, uniqueLastNames: 5 }]);
       });
 
-      test("returns empty result for avg aggregate when no rows match", async () => {
+      test("returns empty result for grouped aggregate when no rows match", async () => {
         const results = await findAll({
-          table: otpCodes,
-          attributes: ["attempts"],
-          aggregates: [
-            { fn: "avg", column: "attempts", as: "avgAttempts" },
-          ] as never,
-          groupBy: ["attempts"],
+          table: users,
+          attributes: ["lastName"],
+          aggregates: [{ fn: "count", column: "*", as: "total" }],
+          groupBy: ["lastName"],
           where: { id: "00000000-0000-0000-0000-000000000000" },
         });
         expect(results).toEqual([]);
@@ -349,99 +332,103 @@ describe("db/queries/utils/findAll.ts", () => {
     test("filters groups by aggregate with gt", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 2, operator: "gt" } },
+        groupBy: ["lastName"],
+        having: { total: { value: 1, operator: "gt" } },
       });
       expect(results).toHaveLength(1);
-      expect(results[0]!.role).toBe("user");
+      expect(results[0]!.lastName).toBe("Oliveira");
     });
 
     test("filters groups by aggregate with eq", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: { total: { value: 2, operator: "eq" } },
       });
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("filters groups by aggregate with gte", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 2, operator: "gte" } },
+        groupBy: ["lastName"],
+        having: { total: { value: 1, operator: "gte" } },
       });
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(5);
     });
 
     test("filters groups by aggregate with lt", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 4, operator: "lt" } },
+        groupBy: ["lastName"],
+        having: { total: { value: 2, operator: "lt" } },
       });
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toHaveLength(4);
+      expect(results.every((r: any) => r.total === 1)).toBe(true);
     });
 
     test("filters groups by aggregate with lte", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 2, operator: "lte" } },
+        groupBy: ["lastName"],
+        having: { total: { value: 1, operator: "lte" } },
       });
-      expect(results).toEqual([{ role: "admin", total: 2 }]);
+      expect(results).toHaveLength(4);
     });
 
     test("filters groups by aggregate with ne", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 4, operator: "ne" } },
+        groupBy: ["lastName"],
+        having: { total: { value: 2, operator: "ne" } },
       });
-      expect(results.every((r: any) => r.total !== 4)).toBe(true);
+      expect(results).toHaveLength(4);
+      expect(results.every((r: any) => r.total !== 2)).toBe(true);
     });
 
     test("filters by grouped entity column", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { role: { value: "user", operator: "eq" } },
+        groupBy: ["lastName"],
+        having: { lastName: { value: "Oliveira", operator: "eq" } },
       });
-      expect(results).toEqual([{ role: "user", total: 4 }]);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("combines having with where", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        where: { phoneVerified: false },
-        having: { total: { value: 2, operator: "gte" } },
+        groupBy: ["lastName"],
+        where: { firstName: { value: "Joao", operator: "ne" } },
+        having: { total: { value: 2, operator: "lt" } },
       });
-      expect(results).toHaveLength(2);
+      // Excluding Joao shrinks the Oliveira group to 1, so all 5 groups pass.
+      expect(results).toHaveLength(5);
+      expect(results).toContainEqual({ lastName: "Oliveira", total: 1 });
     });
 
     test("returns empty when no groups match", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: { total: { value: 999, operator: "gt" } },
       });
       expect(results).toEqual([]);
@@ -457,62 +444,22 @@ describe("db/queries/utils/findAll.ts", () => {
       expect(results).toEqual([{ total: 6 }]);
     });
 
-    test("works with include", async () => {
-      const results = await findAll({
-        table: users,
-        attributes: ["role"],
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 2, operator: "gt" } },
-      });
-      // Inner join drops joaoOliveiraBCD (no OTP): user 3, admin 2.
-      expect(results).toEqual([{ role: "user", total: 3 }]);
-    });
-
-    test("works with include when grouping by nested include", async () => {
-      const results = await findAll({
-        table: otpCodes,
-        include: [{ table: users, attributes: ["role"], on: otpCodesToUsers }],
-        attributes: [],
-        aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["users.role"],
-        having: { total: { value: 2, operator: "gt" } },
-      });
-      expect(results).toHaveLength(1);
-      const user = (results[0] as { user: { role: string } }).user;
-      expect(user.role).toBe("user");
-    });
-
-    test("works with having + include + limit", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        attributes: ["role"],
-        aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        having: { total: { value: 1, operator: "gte" } },
-        limit: 1,
-      });
-      expect(results).toHaveLength(1);
-    });
-
     test("filters groups by grouped entity column with 'in' operator", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         having: {
-          role: {
-            value: ["user", "admin"],
+          lastName: {
+            value: ["Oliveira", "Silva"],
             operator: "in",
           },
         },
       });
       expect(results).toHaveLength(2);
       expect(
-        results.every((r: any) => ["user", "admin"].includes(r.role)),
+        results.every((r: any) => ["Oliveira", "Silva"].includes(r.lastName)),
       ).toBe(true);
     });
   });
@@ -521,11 +468,10 @@ describe("db/queries/utils/findAll.ts", () => {
     test("filters by null columns", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["id", "otpRequestedAt"],
-        where: { otpRequestedAt: null },
+        attributes: ["id", "email"],
+        where: { email: null },
       });
-      expect(results).toHaveLength(6);
-      expect(results.every((r: any) => r.otpRequestedAt === null)).toBe(true);
+      expect(results).toEqual([{ id: joaoOliveiraBCD.id, email: null }]);
     });
 
     test("filters by id", async () => {
@@ -568,19 +514,19 @@ describe("db/queries/utils/findAll.ts", () => {
       ).rejects.toThrow();
     });
 
-    test("filters by enum column", async () => {
+    test("filters by string column", async () => {
       const results = await findAll({
         table: users,
-        where: { role: "admin" },
+        where: { lastName: "Oliveira" },
       });
       expect(results).toHaveLength(2);
     });
 
-    test("filters by enum column with explicit filter", async () => {
+    test("filters by string column with explicit filter", async () => {
       const results = await findAll({
         table: users,
         where: {
-          role: { value: "admin", operator: "ne" },
+          lastName: { value: "Oliveira", operator: "ne" },
         },
       });
       expect(results).toHaveLength(4);
@@ -604,7 +550,7 @@ describe("db/queries/utils/findAll.ts", () => {
         const results = await findAll({
           table: users,
           where: {
-            and: [{ role: "user" }, { id: carlosSilvaAB.id }],
+            and: [{ lastName: "Oliveira" }, { id: joaoOliveiraBCD.id }],
           },
         });
         expect(results).toHaveLength(1);
@@ -614,7 +560,7 @@ describe("db/queries/utils/findAll.ts", () => {
         const results = await findAll({
           table: users,
           where: {
-            or: [{ role: "admin" }, { id: carlosSilvaAB.id }],
+            or: [{ lastName: "Oliveira" }, { id: carlosSilvaAB.id }],
           },
         });
         expect(results).toHaveLength(3);
@@ -627,7 +573,7 @@ describe("db/queries/utils/findAll.ts", () => {
             or: [
               { id: joaoOliveiraBCD.id },
               {
-                and: [{ role: "admin" }, { id: anaCostaAdmin.id }],
+                and: [{ lastName: "Costa" }, { id: anaCostaAdmin.id }],
               },
             ],
           },
@@ -640,9 +586,9 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             and: [
-              { role: "user" },
+              { lastName: "Oliveira" },
               {
-                or: [{ id: carlosSilvaAB.id }, { id: mariaSantosB.id }],
+                or: [{ id: joaoOliveiraBCD.id }, { id: pedroOliveira.id }],
               },
             ],
           },
@@ -655,20 +601,20 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             and: [
-              { role: "user" },
+              { lastName: "Oliveira" },
               {
                 or: [
-                  { phoneVerified: false },
+                  { email: null },
                   {
-                    and: [{ id: joaoOliveiraBCD.id }],
+                    and: [{ id: pedroOliveira.id }],
                   },
                 ],
               },
             ],
           },
         });
-        // All 4 "user"-role records have phoneVerified false.
-        expect(results).toHaveLength(4);
+        // Joao matches via null email, Pedro via id.
+        expect(results).toHaveLength(2);
       });
 
       test("filters with explicit operators inside logical operators", async () => {
@@ -676,12 +622,13 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             and: [
-              { role: { value: "user", operator: "eq" } },
-              { id: { value: carlosSilvaAB.id, operator: "ne" } },
+              { lastName: { value: "Oliveira", operator: "eq" } },
+              { id: { value: joaoOliveiraBCD.id, operator: "ne" } },
             ],
           },
         });
-        expect(results).toHaveLength(3);
+        expect(results).toHaveLength(1);
+        expect(results[0]!.id).toBe(pedroOliveira.id);
       });
 
       test("filters with 'or' combining column filters", async () => {
@@ -717,10 +664,10 @@ describe("db/queries/utils/findAll.ts", () => {
       test("filters with 'not' at root level", async () => {
         const results = await findAll({
           table: users,
-          where: { not: { role: "admin" } },
+          where: { not: { lastName: "Oliveira" } },
         });
         expect(results).toHaveLength(4);
-        expect(results.every((r: any) => r.role !== "admin")).toBe(true);
+        expect(results.every((r: any) => r.lastName !== "Oliveira")).toBe(true);
       });
 
       test("filters with 'not' negating multiple column filters", async () => {
@@ -728,12 +675,12 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             not: {
-              role: "user",
-              id: carlosSilvaAB.id,
+              lastName: "Oliveira",
+              id: joaoOliveiraBCD.id,
             },
           },
         });
-        // NOT (role "user" AND carlosSilvaAB) — keeps everything except carlosSilvaAB.
+        // NOT (lastName "Oliveira" AND joao) — keeps everything except joao.
         expect(results).toHaveLength(5);
       });
 
@@ -741,21 +688,25 @@ describe("db/queries/utils/findAll.ts", () => {
         const results = await findAll({
           table: users,
           where: {
-            and: [{ role: "user" }, { not: { id: carlosSilvaAB.id } }],
+            and: [
+              { lastName: "Oliveira" },
+              { not: { id: joaoOliveiraBCD.id } },
+            ],
           },
         });
-        expect(results).toHaveLength(3);
+        expect(results).toHaveLength(1);
+        expect(results[0]!.id).toBe(pedroOliveira.id);
       });
 
       test("filters with 'not' inside 'or'", async () => {
         const results = await findAll({
           table: users,
           where: {
-            or: [{ role: "admin" }, { not: { role: "user" } }],
+            or: [{ email: null }, { not: { lastName: "Oliveira" } }],
           },
         });
-        // The 2 admins are the only non-"user" roles.
-        expect(results).toHaveLength(2);
+        // Joao (null email) ∪ the 4 non-Oliveiras.
+        expect(results).toHaveLength(5);
       });
 
       test("filters with 'not' wrapping 'or'", async () => {
@@ -763,14 +714,15 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             not: {
-              or: [{ role: "admin" }, { id: carlosSilvaAB.id }],
+              or: [{ lastName: "Oliveira" }, { id: carlosSilvaAB.id }],
             },
           },
         });
         expect(results).toHaveLength(3);
         expect(
           results.every(
-            (r: any) => r.role !== "admin" && r.id !== carlosSilvaAB.id,
+            (r: any) =>
+              r.lastName !== "Oliveira" && r.id !== carlosSilvaAB.id,
           ),
         ).toBe(true);
       });
@@ -778,7 +730,7 @@ describe("db/queries/utils/findAll.ts", () => {
       test("filters with nested 'not' inside 'not'", async () => {
         const results = await findAll({
           table: users,
-          where: { not: { not: { role: "admin" } } },
+          where: { not: { not: { lastName: "Oliveira" } } },
         });
         expect(results).toHaveLength(2);
       });
@@ -798,12 +750,12 @@ describe("db/queries/utils/findAll.ts", () => {
         expect(results).toHaveLength(2);
       });
 
-      test("filters by enum column with 'in' operator", async () => {
+      test("filters by string column with 'in' operator", async () => {
         const results = await findAll({
           table: users,
           where: {
-            role: {
-              value: ["admin"],
+            lastName: {
+              value: ["Oliveira"],
               operator: "in",
             },
           },
@@ -838,15 +790,15 @@ describe("db/queries/utils/findAll.ts", () => {
         const results = await findAll({
           table: users,
           where: {
-            role: "user",
+            lastName: "Oliveira",
             id: {
-              value: [carlosSilvaAB.id, anaCostaAdmin.id],
+              value: [joaoOliveiraBCD.id, carlosSilvaAB.id],
               operator: "in",
             },
           },
         });
         expect(results).toHaveLength(1);
-        expect(results[0]!.id).toBe(carlosSilvaAB.id);
+        expect(results[0]!.id).toBe(joaoOliveiraBCD.id);
       });
 
       test("works with 'in' operator inside logical 'and'", async () => {
@@ -854,10 +806,10 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             and: [
-              { role: "user" },
+              { lastName: "Oliveira" },
               {
                 id: {
-                  value: [carlosSilvaAB.id],
+                  value: [pedroOliveira.id],
                   operator: "in",
                 },
               },
@@ -872,10 +824,10 @@ describe("db/queries/utils/findAll.ts", () => {
           table: users,
           where: {
             or: [
-              { id: joaoOliveiraBCD.id },
+              { id: carlosSilvaAB.id },
               {
-                role: {
-                  value: ["admin"],
+                lastName: {
+                  value: ["Oliveira"],
                   operator: "in",
                 },
               },
@@ -916,167 +868,6 @@ describe("db/queries/utils/findAll.ts", () => {
         );
       });
     });
-
-    describe("joined columns", () => {
-      test("filters via implicit eq on a joined-table column", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: { "otp_codes.attempts": 3 },
-        });
-        expect(results).toHaveLength(1);
-        expect(results[0]!.id).toBe(anaCostaAdmin.id);
-      });
-
-      test("filters via explicit `gt` on a joined-table column", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            "otp_codes.attempts": {
-              value: 0,
-              operator: "gt",
-            },
-          },
-        });
-        // otpCodeD (1 attempt, maria) and otpCodeB (3 attempts, ana).
-        expect(results).toHaveLength(2);
-      });
-
-      test("filters via explicit `in` on a joined-table column", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            "otp_codes.attempts": {
-              value: [0],
-              operator: "in",
-            },
-          },
-        });
-        // otpCodeA, otpCodeC, expiredOtpCode all have 0 attempts.
-        expect(results).toHaveLength(3);
-      });
-
-      test("treats an implicit `null` value as IS NULL on a joined column", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: { "otp_codes.code": null },
-        });
-        // Every seeded OTP code has a non-null code, so no users match.
-        expect(results).toEqual([]);
-      });
-
-      test("AND-combines main-table and joined-table filters", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            role: "user",
-            "otp_codes.attempts": 0,
-          },
-        });
-        // pedroOliveira (otpCodeA) + carlosSilvaAB (otpCodeC).
-        expect(results).toHaveLength(2);
-      });
-
-      test("supports a joined-column filter nested inside an `and` clause", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            and: [{ role: "admin" }, { "otp_codes.attempts": 3 }],
-          },
-        });
-        expect(results).toHaveLength(1);
-      });
-
-      test("supports a joined-column filter nested inside an `or` clause", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            or: [{ "otp_codes.attempts": 3 }, { role: "admin" }],
-          },
-        });
-        // anaCostaAdmin (3 attempts) ∪ both admins with codes = 2.
-        expect(results).toHaveLength(2);
-      });
-
-      test("supports a joined-column filter nested inside a `not` clause", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: { not: { "otp_codes.attempts": 0 } },
-        });
-        // mariaSantosB (1 attempt) + anaCostaAdmin (3 attempts).
-        expect(results).toHaveLength(2);
-      });
-
-      test("supports deeply nested logical operators with joined-column filters", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: {
-            and: [
-              {
-                or: [{ "otp_codes.attempts": 1 }, { role: "admin" }],
-              },
-              { phoneVerified: false },
-            ],
-          },
-        });
-        // mariaSantosB (1 attempt) + both admins with codes = 3.
-        expect(results).toHaveLength(3);
-      });
-
-      test("applies filter-only join filters without adding the joined key to results", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: { "otp_codes.attempts": 3 },
-        });
-        expect(results).toHaveLength(1);
-        // attributes: [] makes the join filter-only; no `otp_code` key in results.
-        expect("otp_code" in (results[0] as object)).toBe(false);
-      });
-
-      test("throws when the dot-notation key references a table not in the include tree", async () => {
-        await expect(
-          findAll({
-            table: users,
-            include: [
-              { table: otpCodes, attributes: [], on: usersToOtpCodes },
-            ],
-            where: {
-              "unknown_table.id": "00000000-0000-0000-0000-000000000000",
-            },
-          }),
-        ).rejects.toThrow();
-      });
-
-      test("throws when the dot-notation key references an unknown column on a joined table", async () => {
-        await expect(
-          findAll({
-            table: users,
-            include: [
-              { table: otpCodes, attributes: [], on: usersToOtpCodes },
-            ],
-            where: { "otp_codes.nope": "x" },
-          }),
-        ).rejects.toThrow();
-      });
-
-      test("throws when a dot-notation key is used without any include", async () => {
-        await expect(
-          findAll({
-            table: users,
-            where: { "otp_codes.attempts": 0 },
-          }),
-        ).rejects.toThrow();
-      });
-    });
   });
 
   describe("pagination", () => {
@@ -1100,12 +891,32 @@ describe("db/queries/utils/findAll.ts", () => {
   });
 
   describe("ordering", () => {
+    test("orders by column ascending", async () => {
+      const results = await findAll({
+        table: users,
+        attributes: ["firstName"],
+        orderBy: { firstName: "asc" },
+      });
+      const names = results.map((r: any) => r.firstName);
+      expect(names).toEqual([...names].sort());
+    });
+
+    test("orders by column descending", async () => {
+      const results = await findAll({
+        table: users,
+        attributes: ["firstName"],
+        orderBy: { firstName: "desc" },
+      });
+      const names = results.map((r: any) => r.firstName);
+      expect(names).toEqual([...names].sort().reverse());
+    });
+
     test("orders by aggregate ascending", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         orderBy: { total: "asc" },
       });
       for (let i = 1; i < results.length; i++) {
@@ -1116,9 +927,9 @@ describe("db/queries/utils/findAll.ts", () => {
     test("orders by aggregate descending", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         orderBy: { total: "desc" },
       });
       for (let i = 1; i < results.length; i++) {
@@ -1129,25 +940,25 @@ describe("db/queries/utils/findAll.ts", () => {
     test("orders by aggregate with limit", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
         orderBy: { total: "desc" },
         limit: 1,
       });
-      expect(results).toHaveLength(1);
-      expect(results[0]!.total).toBe(4);
+      expect(results).toEqual([{ lastName: "Oliveira", total: 2 }]);
     });
 
     test("orders by aggregate combined with regular column", async () => {
       const results = await findAll({
         table: users,
-        attributes: ["role"],
+        attributes: ["lastName"],
         aggregates: [{ fn: "count", column: "*", as: "total" }],
-        groupBy: ["role"],
-        orderBy: { total: "desc", role: "asc" },
+        groupBy: ["lastName"],
+        orderBy: { total: "desc", lastName: "asc" },
       });
-      expect(results[0]!.total).toBe(4);
+      expect(results[0]).toEqual({ lastName: "Oliveira", total: 2 });
+      expect(results[1]).toEqual({ lastName: "Costa", total: 1 });
     });
 
     test("returns rows ordered by createdAt ascending", async () => {
@@ -1173,666 +984,6 @@ describe("db/queries/utils/findAll.ts", () => {
         );
       }
     });
-
-    describe("dot-notation joined columns", () => {
-      test("orders by joined table column ascending", async () => {
-        const results = await findAll({
-          table: otpCodes,
-          include: [
-            {
-              table: users,
-              attributes: ["id", "firstName"],
-              on: otpCodesToUsers,
-            },
-          ],
-          orderBy: { "users.firstName": "asc" },
-        });
-        const names = results.map((r: any) => r.user.firstName);
-        const sorted = [...names].sort();
-        expect(names).toEqual(sorted);
-      });
-
-      test("orders by joined table column descending", async () => {
-        const results = await findAll({
-          table: otpCodes,
-          include: [
-            {
-              table: users,
-              attributes: ["id", "firstName"],
-              on: otpCodesToUsers,
-            },
-          ],
-          orderBy: { "users.firstName": "desc" },
-        });
-        const names = results.map((r: any) => r.user.firstName);
-        const sorted = [...names].sort().reverse();
-        expect(names).toEqual(sorted);
-      });
-
-      test("orders by grouped joined column", async () => {
-        const results = await findAll({
-          table: otpCodes,
-          include: [
-            { table: users, attributes: ["firstName"], on: otpCodesToUsers },
-          ],
-          attributes: [],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["users.firstName"],
-          orderBy: { "users.firstName": "asc" },
-        });
-        expect(results).toHaveLength(5);
-      });
-
-      test("silently skips invalid dot-notation table name", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          // Unknown prefix is silently dropped from the ORDER BY clause.
-          orderBy: { "unknown_table.id": "asc" } as never,
-          limit: 1,
-        });
-        expect(results).toHaveLength(1);
-      });
-
-      test("silently skips invalid dot-notation column name", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          orderBy: { "otp_codes.notARealColumn": "asc" } as never,
-          limit: 1,
-        });
-        expect(results).toHaveLength(1);
-      });
-    });
-  });
-
-  describe("include", () => {
-    test("returns root fields and nested `otp_code` when including otpCodes", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, on: usersToOtpCodes }],
-        where: { id: carlosSilvaAB.id },
-      });
-      expect(results).toHaveLength(1);
-      expect(results[0]!.id).toBe(carlosSilvaAB.id);
-      expect((results[0] as { otp_code: { id: string } }).otp_code.id).toBe(
-        otpCodeC.id,
-      );
-    });
-
-    test("returns correct root-level fields with filter-only join", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        where: { id: carlosSilvaAB.id },
-      });
-      expect(results).toHaveLength(1);
-      expect(results[0]!.id).toBe(carlosSilvaAB.id);
-      expect(results[0]!.role).toBe("user");
-    });
-
-    test("returns correct nested fields with selected attributes", async () => {
-      const results = await findAll({
-        table: users,
-        include: [
-          { table: otpCodes, attributes: ["id", "code"], on: usersToOtpCodes },
-        ],
-        where: { id: mariaSantosB.id },
-      });
-      const otpCode = (results[0] as { otp_code: { id: string; code: string } })
-        .otp_code;
-      expect(otpCode).toEqual({
-        id: otpCodeD.id,
-        code: "hashed-code-d",
-      });
-    });
-
-    test("includes otp codes for all rows when no where filter", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: ["id"], on: usersToOtpCodes }],
-      });
-      // Inner join drops joaoOliveiraBCD (no OTP code).
-      expect(results).toHaveLength(5);
-      expect(
-        results.every(
-          (r: any) => "otp_code" in (r as object) && (r as never)["otp_code"],
-        ),
-      ).toBe(true);
-    });
-
-    test("filters by main-table column with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        where: { role: "user" },
-      });
-      expect(results).toHaveLength(3);
-    });
-
-    test("filters by id with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        where: { id: carlosSilvaAB.id },
-      });
-      expect(results).toHaveLength(1);
-    });
-
-    test("applies limit with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        limit: 3,
-      });
-      expect(results).toHaveLength(3);
-    });
-
-    test("applies offset with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        orderBy: { firstName: "asc" },
-        offset: 3,
-      });
-      expect(results).toHaveLength(2);
-    });
-
-    test("applies limit and offset together with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        orderBy: { firstName: "asc" },
-        limit: 2,
-        offset: 2,
-      });
-      expect(results).toHaveLength(2);
-    });
-
-    test("applies orderBy ascending with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        orderBy: { firstName: "asc" },
-      });
-      for (let i = 1; i < results.length; i++) {
-        expect(
-          results[i]!.firstName >= results[i - 1]!.firstName,
-        ).toBe(true);
-      }
-    });
-
-    test("applies orderBy descending with include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        orderBy: { firstName: "desc" },
-      });
-      for (let i = 1; i < results.length; i++) {
-        expect(
-          results[i]!.firstName <= results[i - 1]!.firstName,
-        ).toBe(true);
-      }
-    });
-
-    test("returns empty array with include when no match", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, on: usersToOtpCodes }],
-        where: { id: "00000000-0000-0000-0000-000000000000" },
-      });
-      expect(results).toEqual([]);
-    });
-
-    test("filters with logical operators and include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        where: {
-          and: [{ role: "user" }, { phoneVerified: false }],
-        },
-      });
-      expect(results).toHaveLength(3);
-    });
-
-    test("filters with not operator and include", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        where: { not: { role: "user" } },
-      });
-      expect(results).toHaveLength(2);
-    });
-
-    test("joins the correct otp code per user", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, on: usersToOtpCodes }],
-      });
-      for (const row of results) {
-        const r = row as { phone: string; otp_code: { phone: string } };
-        expect(r.otp_code.phone).toBe(r.phone);
-      }
-    });
-
-    test("does not include otp codes when include is not specified", async () => {
-      const results = await findAll({
-        table: users,
-        where: { id: carlosSilvaAB.id },
-      });
-      expect("otp_code" in (results[0] as object)).toBe(false);
-    });
-
-    describe("include with joined attributes", () => {
-      test("returns only specified joined attributes", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          where: { id: carlosSilvaAB.id },
-        });
-        const otpCode = (results[0] as { otp_code: { attempts: number } })
-          .otp_code;
-        expect(Object.keys(otpCode)).toEqual(["attempts"]);
-        expect(otpCode.attempts).toBe(0);
-      });
-
-      test("omits the otp_code key when attributes is empty array (filter-only join)", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          where: { id: carlosSilvaAB.id },
-        });
-        expect("otp_code" in (results[0] as object)).toBe(false);
-      });
-
-      test("returns all joined columns when attributes is undefined", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, on: usersToOtpCodes }],
-          where: { id: carlosSilvaAB.id },
-        });
-        const otpCode = (results[0] as { otp_code: Record<string, unknown> })
-          .otp_code;
-        expect(Object.keys(otpCode).length).toBeGreaterThan(5);
-        expect(otpCode["id"]).toBe(otpCodeC.id);
-      });
-
-      test("works with multiple results and joined attributes", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["id"], on: usersToOtpCodes },
-          ],
-          where: { role: "admin" },
-        });
-        expect(results).toHaveLength(2);
-        expect(
-          results.every((r: any) => typeof r.otp_code.id === "string"),
-        ).toBe(true);
-      });
-    });
-
-    describe("include with parent attributes", () => {
-      test("selects specific parent and joined attributes together", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: ["id", "role"],
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          where: { id: carlosSilvaAB.id },
-        });
-        expect(results).toHaveLength(1);
-        const row = results[0] as {
-          id: string;
-          role: string;
-          otp_code: { attempts: number };
-        };
-        expect(Object.keys(row).sort()).toEqual(
-          ["id", "role", "otp_code"].sort(),
-        );
-      });
-
-      test("selects all parent columns when attributes is undefined", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          where: { id: carlosSilvaAB.id },
-        });
-        const row = results[0] as Record<string, unknown>;
-        expect("id" in row).toBe(true);
-        expect("phone" in row).toBe(true);
-        expect("role" in row).toBe(true);
-        expect("otp_code" in row).toBe(true);
-      });
-    });
-
-    describe("include with aggregates", () => {
-      test("works when combining aggregates with include, groupBy, and empty joined attributes", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: ["role"],
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
-        });
-        expect(results).toHaveLength(2);
-      });
-
-      test("allows selecting other attributes when grouping by primary key", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: ["id", "phone"],
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["id"],
-          where: { id: carlosSilvaAB.id },
-        });
-        expect(results).toHaveLength(1);
-        expect(results[0]!.id).toBe(carlosSilvaAB.id);
-      });
-
-      test("succeeds when combining aggregate-only attributes with include and no groupBy", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: [],
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-        });
-        expect(results).toEqual([{ total: 5 }]);
-      });
-
-      test("respects orderBy with aggregates and include", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: ["role"],
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role"],
-          orderBy: { total: "asc" },
-        });
-        expect(results).toHaveLength(2);
-        expect(results[0]!.total).toBeLessThan(results[1]!.total);
-      });
-
-      test("works when combining aggregates with include and narrowed parent attributes", async () => {
-        const results = await findAll({
-          table: users,
-          attributes: ["role"],
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role", "otp_codes.attempts"],
-        });
-        // Groups: (user, 0) ×2, (user, 1) ×1, (admin, 0) ×1, (admin, 3) ×1.
-        expect(results).toHaveLength(4);
-        expect(results[0]).toHaveProperty("otp_code");
-      });
-    });
-
-    describe("include with groupBy on joined columns", () => {
-      test("groups by otp_codes.id with count", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, on: usersToOtpCodes }],
-          attributes: [],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["otp_codes.id"],
-        });
-        expect(results).toHaveLength(5);
-      });
-
-      test("allows selecting other attributes when grouping by included table's primary key", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["id", "code"], on: usersToOtpCodes },
-          ],
-          attributes: [],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["otp_codes.id"],
-        });
-        expect(results).toHaveLength(5);
-        expect(
-          (results[0] as { otp_code: { code: string } }).otp_code.code,
-        ).toBeDefined();
-      });
-
-      test("groups by non-primary key with count", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          attributes: [],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["otp_codes.attempts"],
-        });
-        // Attempts values seeded: 0, 1, 3.
-        expect(results).toHaveLength(3);
-      });
-
-      test("groups by mixed main and joined columns", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, attributes: ["attempts"], on: usersToOtpCodes },
-          ],
-          attributes: ["role"],
-          aggregates: [{ fn: "count", column: "*", as: "total" }],
-          groupBy: ["role", "otp_codes.attempts"],
-        });
-        expect(results.length).toBeGreaterThanOrEqual(3);
-      });
-    });
-
-    describe("include with dot-notation aggregate columns", () => {
-      test("count with dot-notation column", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          attributes: [],
-          aggregates: [
-            { fn: "count", column: "otp_codes.id", as: "codeCount" },
-          ],
-        });
-        expect(results[0]!.codeCount).toBe(5);
-      });
-
-      test("silently skips invalid table name", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          attributes: [],
-          aggregates: [
-            { fn: "count", column: "*", as: "total" },
-            // Unknown prefix is silently dropped.
-            { fn: "count", column: "nope.id", as: "codeCount" } as never,
-          ],
-        });
-        expect(results[0]!.total).toBe(5);
-      });
-
-      test("silently skips invalid column name", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          attributes: [],
-          aggregates: [
-            { fn: "count", column: "*", as: "total" },
-            { fn: "count", column: "otp_codes.nope", as: "x" } as never,
-          ],
-        });
-        expect(results[0]!.total).toBe(5);
-      });
-
-      test("mixes dot-notation and count(*)", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          attributes: [],
-          aggregates: [
-            { fn: "count", column: "*", as: "total" },
-            { fn: "count", column: "otp_codes.id", as: "codeCount" },
-          ],
-        });
-        expect(results[0]!.total).toBe(5);
-        expect(results[0]!.codeCount).toBe(5);
-      });
-
-      test("combined with having filter", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-          attributes: ["role"],
-          aggregates: [
-            { fn: "count", column: "otp_codes.id", as: "codeCount" },
-          ],
-          groupBy: ["role"],
-          having: { codeCount: { value: 2, operator: "gt" } },
-        });
-        expect(results).toHaveLength(1);
-        expect(results[0]!.role).toBe("user");
-      });
-    });
-
-    describe("include with required: false (left join)", () => {
-      test("returns rows with `null` for left-joined table when no match exists", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, required: false, on: usersToOtpCodes },
-          ],
-          where: { id: joaoOliveiraBCD.id },
-        });
-        expect(results).toHaveLength(1);
-        expect((results[0] as { otp_code: unknown }).otp_code).toBeNull();
-      });
-
-      test("returns non-null nested object when left-joined table matches", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, required: false, on: usersToOtpCodes },
-          ],
-          where: { id: carlosSilvaAB.id },
-        });
-        expect(results).toHaveLength(1);
-        const otpCode = (results[0] as { otp_code: { id: string } | null })
-          .otp_code;
-        expect(otpCode).not.toBeNull();
-        expect(otpCode!.id).toBe(otpCodeC.id);
-      });
-
-      test("left join keeps rows an inner join would drop", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            { table: otpCodes, required: false, on: usersToOtpCodes },
-          ],
-        });
-        // All 6 users survive the left join; only joaoOliveiraBCD has no code.
-        expect(results).toHaveLength(6);
-        expect(
-          results.filter((r: any) => r.otp_code === null),
-        ).toHaveLength(1);
-      });
-
-      test("default `required` (omitted) behaves as inner join", async () => {
-        const results = await findAll({
-          table: users,
-          include: [{ table: otpCodes, on: usersToOtpCodes }],
-          where: { id: joaoOliveiraBCD.id },
-        });
-        // Inner join — joaoOliveiraBCD has no OTP code, so row is filtered out.
-        expect(results).toEqual([]);
-      });
-
-      test("omits the relation key when a left-joined table has attributes: [] and matches", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            {
-              table: otpCodes,
-              required: false,
-              attributes: [],
-              on: usersToOtpCodes,
-            },
-          ],
-          where: { id: carlosSilvaAB.id },
-        });
-        expect(results).toHaveLength(1);
-        expect("otp_code" in (results[0] as object)).toBe(false);
-      });
-
-      test("omits the relation key when a left-joined table has attributes: [] and no match", async () => {
-        const results = await findAll({
-          table: users,
-          include: [
-            {
-              table: otpCodes,
-              required: false,
-              attributes: [],
-              on: usersToOtpCodes,
-            },
-          ],
-          where: { id: joaoOliveiraBCD.id },
-        });
-        expect(results).toHaveLength(1);
-        expect("otp_code" in (results[0] as object)).toBe(false);
-      });
-    });
-  });
-
-  describe("alias", () => {
-    test("getTableName returns alias name for aliased tables", () => {
-      const aliased = alias(otpCodes, "activeOtpCodes");
-      expect(getTableName(aliased)).toBe("activeOtpCodes");
-    });
-
-    test("getTableColumns returns valid column refs for aliased tables", () => {
-      const aliased = alias(otpCodes, "activeOtpCodes");
-      const cols = getTableColumns(aliased);
-      expect(cols.id).toBeDefined();
-      expect(cols.attempts).toBeDefined();
-    });
-
-    test("include with alias joins aliased table", async () => {
-      const activeOtpCodes = alias(otpCodes, "activeOtpCodes");
-      const results = await findAll({
-        table: users,
-        include: [
-          {
-            table: otpCodes,
-            alias: activeOtpCodes,
-            on: eq(users.phone, activeOtpCodes.phone),
-            attributes: ["id"],
-          },
-        ],
-        where: { id: carlosSilvaAB.id },
-      });
-      expect(results).toHaveLength(1);
-      const joined = (results[0] as { activeOtpCode: { id: string } })
-        .activeOtpCode;
-      expect(joined.id).toBe(otpCodeC.id);
-    });
-
-    test("existing queries without alias still work unchanged", async () => {
-      const results = await findAll({
-        table: users,
-        include: [{ table: otpCodes, attributes: ["id"], on: usersToOtpCodes }],
-        where: { id: carlosSilvaAB.id },
-      });
-      expect(results).toHaveLength(1);
-      expect((results[0] as { otp_code: { id: string } }).otp_code.id).toBe(
-        otpCodeC.id,
-      );
-    });
   });
 
   describe("count", () => {
@@ -1845,7 +996,7 @@ describe("db/queries/utils/findAll.ts", () => {
       const result = await findAll({
         table: users,
         count: true,
-        where: { role: "admin" },
+        where: { lastName: "Oliveira" },
       });
       expect(result).toEqual([{ count: 2 }]);
     });
@@ -1854,31 +1005,12 @@ describe("db/queries/utils/findAll.ts", () => {
       const result = await findAll({
         table: users,
         count: true,
-        groupBy: ["role"],
+        groupBy: ["lastName"],
       });
       expect(Array.isArray(result)).toBe(true);
-      const groups = result as Array<{ role: string; count: number }>;
-      expect(groups).toContainEqual({ role: "user", count: 4 });
-    });
-
-    test("returns count with include (inner join)", async () => {
-      const result = await findAll({
-        table: users,
-        count: true,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-      });
-      expect(result).toEqual([{ count: 5 }]);
-    });
-
-    test("returns grouped counts with include and groupBy", async () => {
-      const result = await findAll({
-        table: users,
-        count: true,
-        include: [{ table: otpCodes, attributes: [], on: usersToOtpCodes }],
-        groupBy: ["role"],
-      });
-      expect(Array.isArray(result)).toBe(true);
-      expect((result as unknown[]).length).toBe(2);
+      const groups = result as Array<{ lastName: string; count: number }>;
+      expect(groups).toHaveLength(5);
+      expect(groups).toContainEqual({ lastName: "Oliveira", count: 2 });
     });
 
     test("returns 0 count when no rows match", async () => {
@@ -1894,17 +1026,17 @@ describe("db/queries/utils/findAll.ts", () => {
       const result = await findAll({
         table: users,
         count: true,
-        groupBy: ["role"],
-        having: { count: { value: 3, operator: "gt" } },
+        groupBy: ["lastName"],
+        having: { count: { value: 1, operator: "gt" } },
       });
       const groups = result as Array<{ count: number }>;
       expect(groups).toHaveLength(1);
-      expect(groups[0]!.count).toBe(4);
+      expect(groups[0]!.count).toBe(2);
     });
 
-    test("forbids limit with count: true", async () => {
-      // The @ts-expect-error verifies the type system rejects the
-      // combination; at runtime the extra option is silently ignored.
+    test("ignores limit with count: true", async () => {
+      // The production signature forbids this combination at the type level;
+      // at runtime the extra option is silently ignored.
       const result = await findAll({
         table: users,
         count: true,
@@ -1913,7 +1045,7 @@ describe("db/queries/utils/findAll.ts", () => {
       expect(result).toEqual([{ count: 6 }]);
     });
 
-    test("forbids offset with count: true", async () => {
+    test("ignores offset with count: true", async () => {
       const result = await findAll({
         table: users,
         count: true,
@@ -1922,7 +1054,7 @@ describe("db/queries/utils/findAll.ts", () => {
       expect(result).toEqual([{ count: 6 }]);
     });
 
-    test("forbids orderBy with count: true", async () => {
+    test("ignores orderBy with count: true", async () => {
       const result = await findAll({
         table: users,
         count: true,
@@ -1931,7 +1063,7 @@ describe("db/queries/utils/findAll.ts", () => {
       expect(result).toEqual([{ count: 6 }]);
     });
 
-    test("forbids attributes with count: true", async () => {
+    test("ignores attributes with count: true", async () => {
       const result = await findAll({
         table: users,
         count: true,
@@ -1945,11 +1077,12 @@ describe("db/queries/utils/findAll.ts", () => {
         table: users,
         count: true,
         aggregates: [
-          { fn: "countDistinct", column: "phoneVerified", as: "verified" },
+          { fn: "countDistinct", column: "email", as: "uniqueEmails" },
         ],
-        groupBy: ["role"],
+        groupBy: ["lastName"],
       });
       expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(5);
     });
   });
 });

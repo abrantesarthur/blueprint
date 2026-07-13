@@ -1,5 +1,4 @@
-import { env } from "../config";
-import { generateToken } from "../shared/utils/jws";
+import { generateAccessToken } from "../shared/utils/jwt";
 
 /**
  * Generates a valid access token for testing.
@@ -7,13 +6,8 @@ import { generateToken } from "../shared/utils/jws";
  * @returns A valid JWT access token.
  */
 async function generateTestAccessToken(userId: string): Promise<string> {
-  const { token } = await generateToken(
-    userId,
-    "access",
-    3600,
-    env.JWT_SECRET.release(),
-  );
-  return token;
+  const { accessToken } = await generateAccessToken({ userId });
+  return accessToken;
 }
 
 /**

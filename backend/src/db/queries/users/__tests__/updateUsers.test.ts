@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
+import { DbError } from "../../../../shared/utils/errors";
 import type { MockUser } from "../../../../tests/mock-data/users/types";
 import { agent } from "../../../../tests/setup";
 import { findOneUser, updateUsers } from "..";
@@ -48,14 +49,14 @@ describe("db/queries/users/updateUsers.ts", () => {
         values: {
           firstName: "Multi",
           lastName: "Update",
-          phoneVerified: true,
+          email: "multi.update@test.com",
         },
       });
 
       expect(updated).toHaveLength(1);
       expect(updated[0]!.firstName).toBe("Multi");
       expect(updated[0]!.lastName).toBe("Update");
-      expect(updated[0]!.phoneVerified).toBe(true);
+      expect(updated[0]!.email).toBe("multi.update@test.com");
 
       // Revert
       await updateUsers({
@@ -63,9 +64,38 @@ describe("db/queries/users/updateUsers.ts", () => {
         values: {
           firstName: pedroOliveira.firstName,
           lastName: pedroOliveira.lastName,
-          phoneVerified: false,
+          email: pedroOliveira.email,
         },
       });
+    });
+
+    test("sets a nullable column to null", async () => {
+      const updated = await updateUsers({
+        where: { id: pedroOliveira.id },
+        values: { email: null },
+      });
+
+      expect(updated).toHaveLength(1);
+      expect(updated[0]!.email).toBeNull();
+
+      // Revert
+      await updateUsers({
+        where: { id: pedroOliveira.id },
+        values: { email: pedroOliveira.email },
+      });
+    });
+
+    test("throws DbError when updating email to one already in use", async () => {
+      await expect(
+        updateUsers({
+          where: { id: pedroOliveira.id },
+          values: { email: anaCostaAdmin.email },
+        }),
+      ).rejects.toThrow(DbError);
+
+      // Verify the original email is unchanged
+      const persisted = await findOneUser({ where: { id: pedroOliveira.id } });
+      expect(persisted.email).toBe(pedroOliveira.email);
     });
 
     test("returns empty array when no user matches the filter", async () => {

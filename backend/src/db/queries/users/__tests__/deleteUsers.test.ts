@@ -43,7 +43,7 @@ describe("db/queries/users/deleteUsers.ts", () => {
 
       expect(deleted).toHaveLength(1);
       expect(deleted[0]!.id).toBe(pedroOliveira.id);
-      expect(deleted[0]!.phone).toBe(pedroOliveira.phone);
+      expect(deleted[0]!.email).toBe(pedroOliveira.email);
 
       // Verify it no longer exists
       await expect(
@@ -53,7 +53,7 @@ describe("db/queries/users/deleteUsers.ts", () => {
 
     test("deletes a user by email", async () => {
       const deleted = await deleteUsers({
-        where: { email: pedroOliveira.email },
+        where: { email: { operator: "eq", value: pedroOliveira.email } },
       });
 
       expect(deleted).toHaveLength(1);

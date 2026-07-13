@@ -1,29 +1,20 @@
 import type { TestDatabase } from "./db";
 import {
-  fixtures as otpCodeFixtures,
-  type OtpCodeFixtures,
-} from "./mock-data/otpCodes/fixtures";
-import type { MockOtpCode } from "./mock-data/otpCodes/types";
-import {
   fixtures as userFixtures,
   type UserFixtures,
 } from "./mock-data/users/fixtures";
 import type { MockUser } from "./mock-data/users/types";
-import { OtpCodeSeeder } from "./seeders/OtpCodeSeeder";
 import { Seeder } from "./seeders/Seeder";
 import { UserSeeder } from "./seeders/UserSeeder";
 
 enum SeedEntity {
   Users = "users",
-  OtpCodes = "otpCodes",
 }
 
 /** Specification for seeding fixtures. */
 interface SeedSpec {
   /** User fixtures to seed. */
   [SeedEntity.Users]?: (keyof UserFixtures)[];
-  /** OTP code fixtures to seed. */
-  [SeedEntity.OtpCodes]?: (keyof OtpCodeFixtures)[];
 }
 
 /**
@@ -42,14 +33,12 @@ function typedEntries<T extends object>(obj: T): [keyof T, T[keyof T]][] {
 export class TestAgent {
   private seeders: {
     [SeedEntity.Users]: UserSeeder;
-    [SeedEntity.OtpCodes]: OtpCodeSeeder;
   };
   private seededOrder: SeedEntity[] = [];
 
   constructor(db: TestDatabase) {
     this.seeders = {
       users: new UserSeeder(db),
-      otpCodes: new OtpCodeSeeder(db),
     };
   }
 
@@ -73,22 +62,16 @@ export class TestAgent {
     }
   }
 
-  /** Gets a user fixture by name. */
-  getFixture(opts: { user: keyof UserFixtures }): MockUser;
-  /** Gets an OTP code fixture by name. */
-  getFixture(opts: { otpCode: keyof OtpCodeFixtures }): MockOtpCode;
   /**
    * Gets a fixture by entity type and name.
-   * @param opts - Object with exactly one key specifying the entity type and fixture name.
+   * @param opts - Object specifying the entity type and fixture name.
    * @returns The fixture data.
    */
   getFixture(opts: {
-    user?: keyof UserFixtures;
-    otpCode?: keyof OtpCodeFixtures;
-  }): MockUser | MockOtpCode {
-    if (opts.user) return userFixtures[opts.user];
-    if (opts.otpCode) return otpCodeFixtures[opts.otpCode];
-    throw new Error("Must specify user or otpCode");
+    /** The user fixture name. */
+    user: keyof UserFixtures;
+  }): MockUser {
+    return userFixtures[opts.user];
   }
 
   /** Clears seeded tables in reverse order of seeding. */

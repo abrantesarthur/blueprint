@@ -15,12 +15,19 @@ const UUID_PATTERN =
 
 const ISO_DATE_PATTERN = new RegExp(ISO_DATE_PATTERN_STR);
 
+const EMAIL_PATTERN =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
 if (!FormatRegistry.Has("uuid")) {
   FormatRegistry.Set("uuid", (value) => UUID_PATTERN.test(value));
 }
 
 if (!FormatRegistry.Has("date-time")) {
   FormatRegistry.Set("date-time", (value) => !Number.isNaN(Date.parse(value)));
+}
+
+if (!FormatRegistry.Has("email")) {
+  FormatRegistry.Set("email", (value) => EMAIL_PATTERN.test(value));
 }
 
 if (!FormatRegistry.Has("date")) {

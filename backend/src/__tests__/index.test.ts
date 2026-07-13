@@ -33,18 +33,6 @@ describe("index.ts", () => {
       expect(body).toMatchObject({ status: "ok" });
     });
 
-    test("mounts the auth module under /api", async () => {
-      const response = await app.handle(
-        new Request("http://localhost/api/auth/otp/request", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }),
-      );
-
-      expect(response.status).toBe(422);
-    });
-
     test("mounts the users module under /api", async () => {
       const response = await app.handle(
         new Request(

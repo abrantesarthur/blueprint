@@ -4,8 +4,6 @@ import { env } from "../../../../config";
 import {
   getClientIP,
   ipKeyGenerator,
-  otpRequestKeyGenerator,
-  otpVerifyKeyGenerator,
   userKeyGenerator,
 } from "../keyGenerators";
 
@@ -196,72 +194,6 @@ describe("shared/middleware/rateLimit/keyGenerators.ts", () => {
         ctx as Parameters<typeof userKeyGenerator>[0],
       );
       expect(key).toBe("ip:5.6.7.8");
-    });
-  });
-
-  describe("otpRequestKeyGenerator()", () => {
-    beforeAll(() => {
-      (env as { TRUST_PROXY: boolean }).TRUST_PROXY = true;
-    });
-
-    test("generates key with IP and phone when both present", () => {
-      const ctx = {
-        request: new Request("http://localhost/test", {
-          headers: { "x-forwarded-for": "1.2.3.4" },
-        }),
-        body: { phone: "+5511999999999" },
-      };
-      const key = otpRequestKeyGenerator(ctx);
-      expect(key).toBe("otp-req:1.2.3.4:+5511999999999");
-    });
-
-    test("generates key with IP only when phone is not present", () => {
-      const ctx = {
-        request: new Request("http://localhost/test", {
-          headers: { "x-forwarded-for": "1.2.3.4" },
-        }),
-        body: {},
-      };
-      const key = otpRequestKeyGenerator(ctx);
-      expect(key).toBe("otp-req:1.2.3.4");
-    });
-
-    test("generates key with IP only when body is undefined", () => {
-      const ctx = {
-        request: new Request("http://localhost/test", {
-          headers: { "x-forwarded-for": "1.2.3.4" },
-        }),
-      };
-      const key = otpRequestKeyGenerator(ctx);
-      expect(key).toBe("otp-req:1.2.3.4");
-    });
-  });
-
-  describe("otpVerifyKeyGenerator()", () => {
-    beforeAll(() => {
-      (env as { TRUST_PROXY: boolean }).TRUST_PROXY = true;
-    });
-
-    test("generates key with IP and phone", () => {
-      const ctx = {
-        request: new Request("http://localhost/test", {
-          headers: { "x-forwarded-for": "1.2.3.4" },
-        }),
-        body: { phone: "+5511999999999", code: "123456" },
-      };
-      const key = otpVerifyKeyGenerator(ctx);
-      expect(key).toBe("otp-verify:1.2.3.4:+5511999999999");
-    });
-
-    test("uses 'unknown' when phone is not present", () => {
-      const ctx = {
-        request: new Request("http://localhost/test", {
-          headers: { "x-forwarded-for": "1.2.3.4" },
-        }),
-        body: { code: "123456" },
-      };
-      const key = otpVerifyKeyGenerator(ctx);
-      expect(key).toBe("otp-verify:1.2.3.4:unknown");
     });
   });
 });
