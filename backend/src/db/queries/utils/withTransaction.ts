@@ -1,4 +1,4 @@
-import { db, type Transaction } from "../client";
+import { db, type Transaction } from "../../client";
 
 /**
  * Executes a callback inside a database transaction.

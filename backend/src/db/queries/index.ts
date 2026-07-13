@@ -3,4 +3,5 @@ export {
   releaseSessionAdvisoryLock,
   setSessionTimeouts,
   tryAcquireSessionAdvisoryLock,
+  withTransaction,
 } from "./utils";

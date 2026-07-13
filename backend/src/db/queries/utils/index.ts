@@ -3,3 +3,4 @@ export {
   setSessionTimeouts,
   tryAcquireSessionAdvisoryLock,
 } from "./sessionAdvisoryLock";
+export * from "./withTransaction";

@@ -1,6 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working in this repository.
 
 ## Project Overview
 
@@ -113,7 +112,7 @@ blueprint-monorepo/
 
 - All interactions with the database outside of `backend/src/db/` MUST use the functions in `backend/src/db/queries/`.
 
-- Query functions are **hand-written per entity** with direct Drizzle and concrete types — no generic query engine. Each entity directory (e.g., `db/queries/users/`) exposes:
+- Query functions are **hand-written per entity** with direct Drizzle and concrete types. Each entity directory (e.g., `db/queries/users/`) exposes:
   - `find<Entity>s({ where?, orderBy?, limit?, offset?, tx? })` — returns full rows (`Entity[]`). `where` is a small declarative equality-filter object over concrete columns, combined with AND.
   - `find<Entity>({ where, tx? })` — the single throwing single-row finder; throws `NotFoundError` when no row matches. There is no nullable variant: callers that need maybe-semantics catch `NotFoundError` or call `find<Entity>s` and inspect the array.
   - `create<Entity>s` / `update<Entity>s` / `delete<Entity>s` — direct Drizzle insert/update/delete with `.returning()`. Update and delete require at least one `where` filter.
@@ -134,14 +133,11 @@ When a TypeBox schema or type is used by **both** the backend and the frontend, 
 
 ## Session Behavior
 
-- Assume approval for standard development operations. Do not keep asking for permissions to, for instance, create a plan file or run the commands above.
 - After writing or modifying any function, write its tests in the same session before moving on.
-- Use the sequential-thinking MCP tool only for complex multi-step refactors involving 5+ files. For single-function tasks or straightforward implementations, skip it and code directly.
 
 ### SQL Expression Safety
 
 **NEVER pass user-controlled input into Drizzle's `sql` template tag.** The `sql` function creates raw SQL fragments that bypass parameterization. All `sql` usage must be restricted to `backend/src/db/queries/` with hardcoded schema references only.
-
 - If you need a computed SQL expression (e.g., atomic increment), add a dedicated function in `db/queries/` instead of using `sql` in the service layer
 - Update query functions accept plain column values only (e.g., `UserUpdateValues`), never `SQL` — this is a security boundary. If a query needs a SQL expression in its update values, write a dedicated `db/queries/` function with the expression hardcoded in its `.set()` call
 
@@ -150,39 +146,14 @@ When a TypeBox schema or type is used by **both** the backend and the frontend, 
 - JSDoc comments MUST be written on interfaces (including their properties), types, functions (do not forget to specify @returns comment), and interface fields. This is enforced by ESLint!
 - Explicit TypeScript return types on functions
 - Explicit type annotations on function parameters.
+- **Custom error classes**: Throw the classes from `shared/utils/errors.ts` (`AppError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `BadRequestError`, `ConflictError`) with a message constant from `@blueprint/error-utils`, never generic `Error`s.
+- **Parallelize independent async work**: Use `Promise.all` with `map` for independent async operations instead of sequential `await`s.
 - Only add comments to code changes when the code itself cannot convey non-obvious intent.
 - Never write multi-line rationale or "why this matters" essays next to simple changes.
 - **No narrating comments**: Don't write comments that re-describe what the next line literally does (e.g. `// Blur the input` above `input.blur()`).
 - **No historical comments**: Don't leave comments about what the code _used to_ do or what bug a change fixed — `git blame` and commit messages already cover that.
 - **No type casting**: Avoid using `as` type assertions. Instead, use type guards, proper typing, or, if Value.Decode from ` @sinclair/typebox/value` when possible. If a cast is truly unavoidable (e.g., interfacing with an untyped library), add a comment explaining why.
-- **Function arguments as objects**: Functions should use a single object parameter with named properties instead of positional arguments. This improves readability and makes adding optional parameters easier:
-
-  ```typescript
-  // Good
-  export async function updateUser({
-    userId,
-    user,
-    tx,
-  }: {
-    /** The unique identifier of the user. */
-    userId: string;
-    /** The user fields to update. */
-    user: UserUpdateBody;
-    /** Optional database transaction. */
-    tx?: Transaction;
-  }): Promise<UserResponse> {
-    // ...
-  }
-
-  // Avoid
-  export async function updateUser(
-    userId: string,
-    user: UserUpdateBody,
-    tx?: Transaction,
-  ): Promise<UserResponse> {
-    // ...
-  }
-  ```
+- **Function arguments as objects**: Functions must use a single object parameter with named properties instead of positional arguments. This improves readability and makes adding optional parameters easier:
 
 ### Time Constants
 
@@ -308,25 +279,6 @@ E2E tests live in `backend/src/modules/__tests__/` and simulate complete user jo
 - **Rate limiting**: Disable via `setRateLimitEnabled(false)` in `beforeAll`
 - **Unhappy paths**: Weave error cases (422, 400, 403, 409) naturally before the corrected happy-path step. Assert both status code and error body `{ code, error }`.
 
-### Git Operations
-
-**NEVER merge, push, or modify the `main` branch without explicit user permission.**
-
-- Do NOT merge feature branches into `main`
-- Do NOT push commits to `main`
-- Do NOT fast-forward `main` to match another branch
-- Do NOT interpret "sync branches" or similar language as permission to merge into `main`
-
-When asked to rebase or sync branches:
-
-1. Only rebase the feature branch onto `main`
-2. Only force-push the feature branch to its remote
-3. STOP there - do not touch `main` in any way
-
-**Merging into `main` requires the user to explicitly say "merge into main" or "push to main".**
-
-The user reviews changes via GitHub Pull Requests before any merge to `main` occurs.
-
 ### Pre-commit Hooks
 
 This project uses the [pre-commit](https://pre-commit.com/) Python framework to run automated checks before each commit. The configuration lives in `.pre-commit-config.yaml` at the repository root.
@@ -349,13 +301,6 @@ Install the git hooks:
 pre-commit install
 ```
 
-#### Hook Configuration
-
-Hooks are defined in `.pre-commit-config.yaml` and organized into two repos:
-
-**Local hooks** (custom project checks): `lint`, `format`, `typecheck`, `typecheck-frontend`, `db-validate`, `check-migrations`, `validate-schemas`, `validate-query-imports`, `validate-db-usage`, `validate-sql-usage`, `validate-test-only`, `validate-css-tokens`, `knip`
-
-**External hooks** (from `pre-commit/pre-commit-hooks`): `check-merge-conflict`, `detect-private-key`, `check-case-conflict`, `trailing-whitespace`
 
 #### Custom Validation Scripts
 
@@ -369,9 +314,3 @@ Custom hook scripts live next to the workspace they validate:
 1. Create a validation script in the matching workspace (`backend/src/scripts/` or `frontend/scripts/`) following the existing patterns
 2. Add an npm script in that workspace's `package.json`
 3. Add the hook entry in `.pre-commit-config.yaml` with `entry: bun run --cwd <workspace> <script>`
-
-### MCP Tools
-
-- **Paper**: We use [paper](https://app.paper.design) MCP server to create page designs. It's the skin.
-  - **NEVER remove or modify existing artboards when creating a new one.** Creating a new artboard must be an additive operation — existing artboards and their contents must remain untouched. Always verify via `get_basic_info` that all pre-existing artboards are still present after creating a new artboard.
-- **shadcn/ui**: We use the shadcn ([https://ui.shadcn.com/docs/mcp](https://ui.shadcn.com/docs/mcp)) mcp server to fetch the primitive components (e.g., dropdowns, date pickers, forms) that we customize with our own visual identity. It's the skeleton.
