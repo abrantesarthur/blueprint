@@ -30,6 +30,10 @@
       "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
       "project": ["src/**/*.ts"]
     },
+    "utils/logger": {
+      "entry": ["src/index.ts", "src/**/__tests__/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "utils/script": {
       "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
