@@ -25,6 +25,7 @@
         "@blueprint/api-utils": "workspace:*",
         "@blueprint/async-arg-utils": "workspace:*",
         "@blueprint/error-utils": "workspace:*",
+        "@blueprint/logger-utils": "workspace:*",
         "@blueprint/script-utils": "workspace:*",
         "@blueprint/time-utils": "workspace:*",
         "@blueprint/type-utils": "workspace:*",

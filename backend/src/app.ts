@@ -3,7 +3,9 @@ import { Elysia } from "elysia";
 
 import { usersModule } from "./modules";
 import { onError } from "./shared/hooks";
+import { logger } from "./shared/logger";
 import { globalIpRateLimitPlugin } from "./shared/middleware/rateLimit";
+import { requestLoggerPlugin } from "./shared/middleware/requestLogger";
 
 /**
  * Creates the Elysia app instance.
@@ -13,6 +15,7 @@ import { globalIpRateLimitPlugin } from "./shared/middleware/rateLimit";
 export function createApp() {
   return (
     new Elysia({ normalize: true })
+      .use(requestLoggerPlugin({ logger }))
       .use(
         cors({
           // FIXME: configure this properly in production

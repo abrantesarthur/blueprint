@@ -1,4 +1,5 @@
 import AsyncArg from "@blueprint/async-arg-utils";
+import { isLogLevel, LOG_LEVELS, type LogLevel } from "@blueprint/logger-utils";
 import { Secret } from "@transcend-io/secret-value";
 
 import { type DbEnv, dbEnvConfig, fetchDbEnv } from "./loadDbEnv";
@@ -47,6 +48,13 @@ const envConfig = {
     max: 65535,
   }),
 
+  // Logging
+  LOG_LEVEL: AsyncArg.string({
+    envName: "LOG_LEVEL",
+    description: `Minimum structured-log level (one of: ${LOG_LEVELS.join(", ")})`,
+    default: "info",
+  }),
+
   // Rate limiting
   TRUST_PROXY: AsyncArg.boolean({
     envName: "TRUST_PROXY",
@@ -79,6 +87,8 @@ interface Env extends DbEnv {
   RUNTIME_ENVIRONMENT: string;
   /** Server port. */
   PORT: number;
+  /** Minimum structured-log level for the backend logger. */
+  LOG_LEVEL: LogLevel;
   /** Whether to trust proxy headers for client IP extraction. */
   TRUST_PROXY: boolean;
   /**
@@ -91,6 +101,21 @@ interface Env extends DbEnv {
    * dev tunnel URL. Empty when unset.
    */
   CLOUDFLARE_TUNNEL_HOSTNAME: string;
+}
+
+/**
+ * Fetches `LOG_LEVEL` and narrows it to a valid log level.
+ * @returns The validated log level.
+ * @throws Error if the value is not one of {@link LOG_LEVELS}.
+ */
+async function fetchLogLevel(): Promise<LogLevel> {
+  const value = await envConfig.LOG_LEVEL.fetch();
+  if (!isLogLevel(value)) {
+    throw new Error(
+      `LOG_LEVEL must be one of: ${LOG_LEVELS.join(", ")} (got "${value}")`,
+    );
+  }
+  return value;
 }
 
 /** Cached promise so concurrent/repeated calls share a single Bitwarden fetch. */
@@ -115,6 +140,7 @@ async function doLoadEnv(): Promise<Env> {
     JWT_SECRET: await envConfig.JWT_SECRET.fetch(),
     RUNTIME_ENVIRONMENT: await envConfig.RUNTIME_ENVIRONMENT.fetch(),
     PORT: await envConfig.PORT.fetch(),
+    LOG_LEVEL: await fetchLogLevel(),
     TRUST_PROXY: await envConfig.TRUST_PROXY.fetch(),
     CLOUDFLARE_TUNNEL_TOKEN: await envConfig.CLOUDFLARE_TUNNEL_TOKEN.fetch(),
     CLOUDFLARE_TUNNEL_HOSTNAME:
