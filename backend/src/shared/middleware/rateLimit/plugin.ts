@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
 
 import { onError } from "../../hooks";
+import { logger } from "../../logger";
 import { TooManyRequestsError } from "../../utils/errors";
 import { getClientIP, globalIpKeyGenerator } from "./keyGenerators";
 import { type RateLimitResult, rateLimitStore } from "./store";
@@ -76,10 +77,13 @@ const checkRateLimit = (
     // Set header before the throw so it survives to the error response.
     ctx.set.headers["Retry-After"] = retryAfterSeconds.toString();
 
-    // Single observability point for every rate-limit rejection.
-    const path = new URL(ctx.request.url).pathname;
-    console.warn(
-      `Rate limit exceeded: ${path} from ${getClientIP(ctx.request)}`,
+    // The generic onError line carries no client identity; log the IP here.
+    logger.warn(
+      {
+        path: new URL(ctx.request.url).pathname,
+        clientIp: getClientIP(ctx.request),
+      },
+      "rate limit exceeded",
     );
 
     throw new TooManyRequestsError(

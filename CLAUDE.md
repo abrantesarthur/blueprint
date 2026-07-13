@@ -1,6 +1,5 @@
 # CLAUDE.md
 
-
 ## Project Overview
 
 Blueprint is a reusable full-stack monorepo template. It ships with an example vertical slice — a minimal `users` CRUD module — that demonstrates the repo patterns end-to-end (schema → queries → module → fixtures → seeders → tests). Replace the example slice with your own domain while keeping the conventions below.
@@ -81,6 +80,7 @@ blueprint-monorepo/
 │   ├── date/                 # Helpers for computing dates
 │   ├── enum/                 # Single-source-of-truth TypeBox enum schemas
 │   ├── error/                # Shared error codes, types, messages, and HTTP status mappings
+│   ├── logger/               # Structured JSON logging factory built on pino
 │   ├── script/               # CLI script helpers (exec, spinner, success/failure logging)
 │   ├── time/                 # time-duration constants in milliseconds (e.g., ONE_SECOND)
 │   └── type/                 # generic type helpers (e.g., RequiredField, uniqueBy)
@@ -138,6 +138,7 @@ When a TypeBox schema or type is used by **both** the backend and the frontend, 
 ### SQL Expression Safety
 
 **NEVER pass user-controlled input into Drizzle's `sql` template tag.** The `sql` function creates raw SQL fragments that bypass parameterization. All `sql` usage must be restricted to `backend/src/db/queries/` with hardcoded schema references only.
+
 - If you need a computed SQL expression (e.g., atomic increment), add a dedicated function in `db/queries/` instead of using `sql` in the service layer
 - Update query functions accept plain column values only (e.g., `UserUpdateValues`), never `SQL` — this is a security boundary. If a query needs a SQL expression in its update values, write a dedicated `db/queries/` function with the expression hardcoded in its `.set()` call
 
@@ -300,7 +301,6 @@ Install the git hooks:
 ```bash
 pre-commit install
 ```
-
 
 #### Custom Validation Scripts
 

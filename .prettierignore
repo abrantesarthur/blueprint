@@ -25,3 +25,6 @@ coverage
 .vscode
 .idea
 *.swp
+
+# Generated drizzle migration files (immutable once committed — see db:check-migrations)
+backend/src/db/migrations

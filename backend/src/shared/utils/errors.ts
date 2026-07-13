@@ -198,7 +198,6 @@ export function handleError(error: unknown, path?: string): ApiErrorResponse {
     }
   }
 
-  console.error("Unhandled error:", error);
   const code = ErrorCode.INTERNAL_ERROR;
   return {
     status: ErrorCodeToHttpStatus[code],

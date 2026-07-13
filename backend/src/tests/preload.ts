@@ -11,10 +11,12 @@ export const testDb = createTestDb();
 
 /**
  * Mock the db client module BEFORE any test file imports.
- * This ensures all service files use the test database.
+ * This ensures all service files use the test database. `closeDb` is a
+ * no-op: the test runner owns the test database's lifecycle.
  */
 mock.module("../db/client.ts", () => ({
   db: testDb,
+  closeDb: async (): Promise<void> => {},
 }));
 
 /**
@@ -27,6 +29,7 @@ mock.module("../config/index.ts", () => ({
     JWT_SECRET: new Secret("test-jwt-secret-at-least-32-chars"),
     RUNTIME_ENVIRONMENT: "test",
     PORT: 3000,
+    LOG_LEVEL: "silent",
     TRUST_PROXY: false,
     CLOUDFLARE_TUNNEL_TOKEN: new Secret(""),
     CLOUDFLARE_TUNNEL_HOSTNAME: "",

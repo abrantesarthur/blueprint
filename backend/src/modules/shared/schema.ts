@@ -1,9 +1,6 @@
 import { t } from "elysia";
 
-export {
-  type SuccessResponse,
-  successResponse,
-} from "@blueprint/api-utils";
+export { type SuccessResponse, successResponse } from "@blueprint/api-utils";
 
 // ============ Common Params ============
 
