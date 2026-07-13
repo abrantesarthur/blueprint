@@ -35,8 +35,8 @@ function resolveStatus(status: number | string | undefined): number {
  * Creates an Elysia plugin that logs one structured line per HTTP request
  * (method, path, status, duration in ms) after the response is sent.
  *
- * Request bodies are deliberately never logged — payloads may carry child
- * audio and typed text.
+ * Request bodies are deliberately never logged — they may carry sensitive
+ * user content.
  *
  * Note: responses short-circuited by returning a `Response` from `onRequest`
  * (e.g. global rate-limit 429s) never reach `onAfterResponse`, so they get no
