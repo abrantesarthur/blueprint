@@ -77,7 +77,7 @@ function startServer(): void {
   const app = createApp().listen(env.PORT);
 
   logger.info(
-    { hostname: app.server?.hostname, port: app.server?.port },
+    { host: app.server?.hostname, port: app.server?.port },
     "server started",
   );
 
