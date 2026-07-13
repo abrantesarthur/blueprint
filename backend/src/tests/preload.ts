@@ -11,10 +11,12 @@ export const testDb = createTestDb();
 
 /**
  * Mock the db client module BEFORE any test file imports.
- * This ensures all service files use the test database.
+ * This ensures all service files use the test database. `closeDb` is a
+ * no-op: the test runner owns the test database's lifecycle.
  */
 mock.module("../db/client.ts", () => ({
   db: testDb,
+  closeDb: async (): Promise<void> => {},
 }));
 
 /**

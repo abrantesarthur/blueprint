@@ -12,6 +12,15 @@ export const db = drizzle({
   casing: "snake_case",
 });
 
+/**
+ * Closes the underlying Postgres connection pool, waiting for in-flight
+ * queries to finish. Call during graceful shutdown, after the HTTP server
+ * has drained.
+ */
+export async function closeDb(): Promise<void> {
+  await db.$client.close();
+}
+
 /** The Drizzle database client instance type. */
 export type Database = typeof db;
 
