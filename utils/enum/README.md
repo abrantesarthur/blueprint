@@ -9,7 +9,10 @@ validation, types, and the database column can never drift apart.
 import { type Static, Type as t } from "@sinclair/typebox";
 import { getSchemaValues } from "@blueprint/enum-utils";
 
-export const statusSchema = t.Union([t.Literal("active"), t.Literal("archived")]);
+export const statusSchema = t.Union([
+  t.Literal("active"),
+  t.Literal("archived"),
+]);
 export type Status = Static<typeof statusSchema>;
 export const STATUS_VALUES = getSchemaValues(statusSchema); // for pgEnum
 ```

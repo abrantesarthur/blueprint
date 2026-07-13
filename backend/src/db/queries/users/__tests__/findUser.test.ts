@@ -41,9 +41,9 @@ describe("db/queries/users/findUser.ts", () => {
     });
 
     test("throws NotFoundError when no user matches", async () => {
-      await expect(findUser({ where: { id: MISSING_ID } })).rejects.toBeInstanceOf(
-        NotFoundError,
-      );
+      await expect(
+        findUser({ where: { id: MISSING_ID } }),
+      ).rejects.toBeInstanceOf(NotFoundError);
       await expect(findUser({ where: { id: MISSING_ID } })).rejects.toThrow(
         "User not found",
       );
