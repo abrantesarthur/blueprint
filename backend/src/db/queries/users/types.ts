@@ -1,35 +1,29 @@
-import type { User, users } from "../../schema";
-import type {
-  GenericCreateOptions,
-  GenericDeleteOptions,
-  GenericFindOneOptions,
-  GenericFindOptions,
-  GenericUpdateOptions,
-} from "../utils";
+import type { User } from "../../schema";
 
-/** Options for creating user records. */
-export type CreateUsersOptions = GenericCreateOptions<typeof users>;
+/**
+ * Equality filters for selecting user rows.
+ * All provided fields are combined with AND.
+ */
+export interface UserWhere {
+  /** Match by the user's unique identifier. */
+  id?: string;
+  /** Match by email address. Pass `null` to match users without an email. */
+  email?: string | null;
+  /** Match by first name. */
+  firstName?: string;
+  /** Match by last name. */
+  lastName?: string;
+}
 
-/** Include options for finding users. */
-export type UsersInclude = [];
+/** Sort specification for user queries. */
+export interface UserOrderBy {
+  /** The user column to sort by. */
+  column: keyof User;
+  /** The sort direction. */
+  direction: "asc" | "desc";
+}
 
-/** Filter options for finding users. */
-export type FindUsersOptions<
-  T extends UsersInclude,
-  K extends keyof User = keyof User,
-  A extends string = string,
-  AK extends keyof User = keyof User,
-> = GenericFindOptions<User, T, K, A, AK>;
-
-/** Filter options for finding a single user. */
-export type FindOneUserOptions<T extends UsersInclude> = GenericFindOneOptions<
-  User,
-  T,
-  keyof User
+/** Mutable user columns accepted by `updateUsers`. */
+export type UserUpdateValues = Partial<
+  Pick<User, "email" | "firstName" | "lastName">
 >;
-
-/** Update options for users. */
-export type UpdateUserOptions = GenericUpdateOptions<User>;
-
-/** Delete options for users. */
-export type DeleteUserOptions = GenericDeleteOptions<User>;

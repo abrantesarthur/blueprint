@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 
-import { findOneUser } from "../../db";
+import { findUsers } from "../../db";
 import type { AuthUser } from "../types";
 import { UnauthorizedError } from "../utils/errors";
 import { verifyAccessToken } from "../utils/jwt";
@@ -32,16 +32,19 @@ export const authMiddleware = new Elysia({ name: "auth" })
         throw new UnauthorizedError("Authentication required");
       }
 
-      const user = await findOneUser({
-        attributes: ["id", "email", "firstName", "lastName"],
-        where: { id: payload.id },
-        require: false,
-      });
+      const [user] = await findUsers({ where: { id: payload.id }, limit: 1 });
 
       if (!user) {
         throw new UnauthorizedError("Authentication required");
       }
 
-      return { user };
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      };
     },
   );

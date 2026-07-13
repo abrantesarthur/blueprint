@@ -3,19 +3,21 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { DbError } from "../../../../shared/utils/errors";
 import type { MockUser } from "../../../../tests/mock-data/users/types";
 import { agent } from "../../../../tests/setup";
-import { findOneUser, updateUsers } from "..";
+import { findUser, updateUsers } from "..";
 
 describe("db/queries/users/updateUsers.ts", () => {
   let pedroOliveira: MockUser;
   let anaCostaAdmin: MockUser;
+  let joaoOliveiraBCD: MockUser;
 
   beforeAll(async () => {
     await agent.seed({
-      users: ["pedroOliveira", "anaCostaAdmin"],
+      users: ["pedroOliveira", "anaCostaAdmin", "joaoOliveiraBCD"],
     });
 
     pedroOliveira = agent.getFixture({ user: "pedroOliveira" });
     anaCostaAdmin = agent.getFixture({ user: "anaCostaAdmin" });
+    joaoOliveiraBCD = agent.getFixture({ user: "joaoOliveiraBCD" });
   });
 
   afterAll(async () => {
@@ -33,7 +35,7 @@ describe("db/queries/users/updateUsers.ts", () => {
       expect(updated[0]!.firstName).toBe("UpdatedName");
 
       // Verify persistence
-      const persisted = await findOneUser({ where: { id: pedroOliveira.id } });
+      const persisted = await findUser({ where: { id: pedroOliveira.id } });
       expect(persisted.firstName).toBe("UpdatedName");
 
       // Revert
@@ -54,9 +56,11 @@ describe("db/queries/users/updateUsers.ts", () => {
       });
 
       expect(updated).toHaveLength(1);
-      expect(updated[0]!.firstName).toBe("Multi");
-      expect(updated[0]!.lastName).toBe("Update");
-      expect(updated[0]!.email).toBe("multi.update@test.com");
+      expect(updated[0]).toMatchObject({
+        firstName: "Multi",
+        lastName: "Update",
+        email: "multi.update@test.com",
+      });
 
       // Revert
       await updateUsers({
@@ -94,7 +98,7 @@ describe("db/queries/users/updateUsers.ts", () => {
       ).rejects.toThrow(DbError);
 
       // Verify the original email is unchanged
-      const persisted = await findOneUser({ where: { id: pedroOliveira.id } });
+      const persisted = await findUser({ where: { id: pedroOliveira.id } });
       expect(persisted.email).toBe(pedroOliveira.email);
     });
 
@@ -107,11 +111,9 @@ describe("db/queries/users/updateUsers.ts", () => {
       expect(result).toEqual([]);
     });
 
-    test("updates multiple users matching an OR filter", async () => {
+    test("updates all users matching the filter", async () => {
       const updated = await updateUsers({
-        where: {
-          or: [{ id: pedroOliveira.id }, { id: anaCostaAdmin.id }],
-        },
+        where: { lastName: "Oliveira" },
         values: { lastName: "TestName" },
       });
 
@@ -125,14 +127,14 @@ describe("db/queries/users/updateUsers.ts", () => {
           values: { lastName: pedroOliveira.lastName },
         }),
         updateUsers({
-          where: { id: anaCostaAdmin.id },
-          values: { lastName: anaCostaAdmin.lastName },
+          where: { id: joaoOliveiraBCD.id },
+          values: { lastName: joaoOliveiraBCD.lastName },
         }),
       ]);
     });
 
     test("returns updated records with refreshed updatedAt", async () => {
-      const before = await findOneUser({ where: { id: pedroOliveira.id } });
+      const before = await findUser({ where: { id: pedroOliveira.id } });
       const oldUpdatedAt = before.updatedAt;
 
       const updated = await updateUsers({
@@ -150,37 +152,14 @@ describe("db/queries/users/updateUsers.ts", () => {
         values: { firstName: pedroOliveira.firstName },
       });
     });
-  });
 
-  describe("strict mode safety", () => {
-    test("throws when and clause is empty", async () => {
+    test("throws when where has no filters", async () => {
       await expect(
         updateUsers({
-          // @ts-expect-error Testing invalid where clause
-          where: { and: [] },
+          where: {},
           values: { firstName: "x" },
         }),
-      ).rejects.toThrow("Strict mode");
-    });
-
-    test("throws when or clause is empty", async () => {
-      await expect(
-        updateUsers({
-          // @ts-expect-error Testing invalid where clause
-          where: { or: [] },
-          values: { firstName: "x" },
-        }),
-      ).rejects.toThrow("Strict mode");
-    });
-
-    test("throws when nested clauses resolve to empty", async () => {
-      await expect(
-        updateUsers({
-          // @ts-expect-error Testing invalid where clause
-          where: { and: [{ or: [] }] },
-          values: { firstName: "x" },
-        }),
-      ).rejects.toThrow("Strict mode");
+      ).rejects.toThrow("At least one where filter must be provided");
     });
   });
 });

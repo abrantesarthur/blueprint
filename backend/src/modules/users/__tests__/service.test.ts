@@ -7,7 +7,7 @@ import {
   test,
 } from "bun:test";
 
-import { deleteUsers, findOneUser } from "../../../db";
+import { deleteUsers, findUser, findUsers } from "../../../db";
 import type { MockUser } from "../../../tests/mock-data/users/types";
 import { agent } from "../../../tests/setup";
 import { createUser, deleteUserAccount, getUser, updateUser } from "../service";
@@ -53,11 +53,8 @@ describe("users/service.ts", () => {
       });
       expect(result.createdAt).toBeInstanceOf(Date);
 
-      const createdRow = await findOneUser({
-        where: { id: result.id },
-        require: false,
-      });
-      expect(createdRow).not.toBeNull();
+      const [createdRow] = await findUsers({ where: { id: result.id } });
+      expect(createdRow).toBeDefined();
       expect(createdRow!.email).toBe("john.doe@test.com");
     });
 
@@ -161,7 +158,7 @@ describe("users/service.ts", () => {
     });
 
     test("bumps updatedAt", async () => {
-      const before = await findOneUser({ where: { id: primaryUser.id } });
+      const before = await findUser({ where: { id: primaryUser.id } });
       await new Promise((r) => {
         setTimeout(r, 5);
       });
@@ -197,19 +194,13 @@ describe("users/service.ts", () => {
 
   describe("deleteUserAccount", () => {
     test("permanently deletes the user from the database", async () => {
-      const before = await findOneUser({
-        where: { id: primaryUser.id },
-        require: false,
-      });
-      expect(before).not.toBeNull();
+      const [before] = await findUsers({ where: { id: primaryUser.id } });
+      expect(before).toBeDefined();
 
       await deleteUserAccount(primaryUser.id);
 
-      const after = await findOneUser({
-        where: { id: primaryUser.id },
-        require: false,
-      });
-      expect(after).toBeNull();
+      const after = await findUsers({ where: { id: primaryUser.id } });
+      expect(after).toEqual([]);
 
       // Restore the user so other tests in this file can rely on it.
       await agent.seed({ users: ["carlosSilvaAB"] });
@@ -229,7 +220,7 @@ describe("users/service.ts", () => {
     });
 
     test("returns the user record when the caller is the owner", async () => {
-      const dbUser = await findOneUser({ where: { id: primaryUser.id } });
+      const dbUser = await findUser({ where: { id: primaryUser.id } });
 
       const result = await getUser({
         userId: primaryUser.id,

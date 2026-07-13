@@ -113,6 +113,17 @@ blueprint-monorepo/
 
 - All interactions with the database outside of `backend/src/db/` MUST use the functions in `backend/src/db/queries/`.
 
+- Query functions are **hand-written per entity** with direct Drizzle and concrete types — no generic query engine. Each entity directory (e.g., `db/queries/users/`) exposes:
+  - `find<Entity>s({ where?, orderBy?, limit?, offset?, tx? })` — returns full rows (`Entity[]`). `where` is a small declarative equality-filter object over concrete columns, combined with AND.
+  - `find<Entity>({ where, tx? })` — the single throwing single-row finder; throws `NotFoundError` when no row matches. There is no nullable variant: callers that need maybe-semantics catch `NotFoundError` or call `find<Entity>s` and inspect the array.
+  - `create<Entity>s` / `update<Entity>s` / `delete<Entity>s` — direct Drizzle insert/update/delete with `.returning()`. Update and delete require at least one `where` filter.
+
+- Query functions always return full rows — no dynamic column selection. Callers narrow the shape themselves.
+
+- Complex needs (aggregates, group by, having, joins) are NOT generalized: when a real query needs them, add a bespoke query function for that case in `db/queries/`.
+
+- Drizzle operators (`eq`, `and`, `sql`, ...) must never leak outside `backend/src/db/` — services and modules only call the query functions.
+
 ## API Utils
 
 When a TypeBox schema or type is used by **both** the backend and the frontend, it MUST live in `utils/api/src/`.
@@ -132,7 +143,7 @@ When a TypeBox schema or type is used by **both** the backend and the frontend, 
 **NEVER pass user-controlled input into Drizzle's `sql` template tag.** The `sql` function creates raw SQL fragments that bypass parameterization. All `sql` usage must be restricted to `backend/src/db/queries/` with hardcoded schema references only.
 
 - If you need a computed SQL expression (e.g., atomic increment), add a dedicated function in `db/queries/` instead of using `sql` in the service layer
-- `GenericUpdateOptions.values` deliberately does NOT accept `SQL` — this is a security boundary. If a query needs a SQL expression in its update values, define the values type inline in that dedicated `db/queries/` function's `.set()` call instead of using `GenericUpdateOptions`
+- Update query functions accept plain column values only (e.g., `UserUpdateValues`), never `SQL` — this is a security boundary. If a query needs a SQL expression in its update values, write a dedicated `db/queries/` function with the expression hardcoded in its `.set()` call
 
 ### Code Style
 

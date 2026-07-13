@@ -4,7 +4,7 @@ import { UserErrorMessage } from "@blueprint/error-utils";
 import {
   createUsers,
   deleteUsers,
-  findOneUser,
+  findUsers,
   updateUsers,
   type User,
 } from "../../db";
@@ -117,7 +117,7 @@ export async function getUser({
     throw new ForbiddenError(UserErrorMessage.ACCESS_DENIED);
   }
 
-  const user = await findOneUser({ where: { id: userId }, require: false });
+  const [user] = await findUsers({ where: { id: userId }, limit: 1 });
   if (!user) {
     throw new NotFoundError(UserErrorMessage.USER_NOT_FOUND);
   }

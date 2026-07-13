@@ -1,113 +1,57 @@
-import type { RequiredField } from "@blueprint/type-utils";
+import { asc, desc } from "drizzle-orm";
 
+import { db, type Transaction } from "../../client";
 import { type User, users } from "../../schema";
-import { findAll } from "../utils";
-import type { WithAggregate } from "../utils/types";
-import type { FindUsersOptions, UsersInclude } from "./types";
+import type { UserOrderBy, UserWhere } from "./types";
+import { buildUserWhere } from "./where";
 
 /**
- * Overload 1: aggregates required, all entity columns.
- *
- * @param options
- * @example
- * const results = await findUsers({
- *   aggregates: [{ fn: "count", column: "*", as: "total" }],
- *   groupBy: ["lastName"],
- * });
- *
- * // results[0].total    → number
- * // results[0].lastName → string (all columns present)
- *
- * @returns An array of objects containing all user columns and aggregate values.
+ * Finds users matching the provided equality filters.
+ * @param options - The query options.
+ * @param options.where - Equality filters combined with AND. When omitted, all users match.
+ * @param options.orderBy - Column and direction to sort the results by.
+ * @param options.limit - Maximum number of rows to return.
+ * @param options.offset - Number of rows to skip.
+ * @param options.tx - Optional database transaction to run the query within.
+ * @returns The matching user records.
  */
-export async function findUsers<K extends keyof User, const A extends string>(
-  options: Omit<
-    RequiredField<FindUsersOptions<UsersInclude, K, A>, "aggregates">,
-    "attributes"
-  >,
-): Promise<WithAggregate<User, A>[]>;
-
-/**
- * Overload 2: attributes required (optional aggregates).
- *
- * @param options
- * @example
- * const results = await findUsers({
- *   attributes: ["firstName", "lastName"],
- *   aggregates: [{ fn: "count", column: "*", as: "total" }],
- *   groupBy: ["firstName", "lastName"],
- * });
- *
- * // results[0].firstName → string
- * // results[0].lastName  → string
- * // results[0].total     → number
- *
- * @returns An array of objects containing the selected user columns
- * and aggregate values (if any). No joined tables are present.
- */
-export async function findUsers<
-  K extends keyof User,
-  const A extends string,
-  AK extends keyof User,
->(
-  options: RequiredField<
-    FindUsersOptions<UsersInclude, K, A, AK>,
-    "attributes"
-  >,
-): Promise<WithAggregate<Pick<User, AK>, A>[]>;
-
-/**
- * Overload 3: without aggregates or attribute selection (general case).
- *
- * Find users without aggregates or explicit attribute selection.
- * This is the most basic overload — a simple query returning all user columns.
- *
- * @param options
- * @example
- * const results = await findUsers({
- *   where: { lastName: "Silva" },
- *   orderBy: { firstName: "asc" },
- *   limit: 10,
- * });
- *
- * // results[0].id        → string
- * // results[0].firstName → string
- * // results[0].email     → string (all columns present)
- *
- * @returns An array of plain User objects with all columns.
- */
-export async function findUsers<T extends UsersInclude>(
-  options: Omit<FindUsersOptions<T>, "having" | "aggregates">,
-): Promise<User[]>;
-
-/**
- * Finds users matching the provided filters.
- * @param options - The filter options.
- * @returns List of users matching the filters.
- */
-export async function findUsers<T extends UsersInclude, K extends keyof User>({
+export async function findUsers({
   where,
+  orderBy,
   limit,
   offset,
-  orderBy,
-  groupBy,
-  attributes,
-  aggregates,
-  having,
   tx,
-}: FindUsersOptions<T, K>): Promise<
-  (Pick<User, K> & Record<string, number>)[] | Pick<User, K>[] | User[]
-> {
-  return findAll({
-    table: users,
-    where,
-    limit,
-    offset,
-    orderBy,
-    groupBy,
-    attributes,
-    aggregates,
-    having,
-    tx,
-  }) as never;
+}: {
+  /** Equality filters combined with AND. When omitted, all users match. */
+  where?: UserWhere;
+  /** Column and direction to sort the results by. */
+  orderBy?: UserOrderBy;
+  /** Maximum number of rows to return. */
+  limit?: number;
+  /** Number of rows to skip. */
+  offset?: number;
+  /** Optional database transaction to run the query within. */
+  tx?: Transaction;
+} = {}): Promise<User[]> {
+  const executor = tx ?? db;
+  let query = executor.select().from(users).$dynamic();
+
+  const condition = where ? buildUserWhere({ where }) : undefined;
+  if (condition) {
+    query = query.where(condition);
+  }
+  if (orderBy) {
+    const column = users[orderBy.column];
+    query = query.orderBy(
+      orderBy.direction === "desc" ? desc(column) : asc(column),
+    );
+  }
+  if (limit !== undefined) {
+    query = query.limit(limit);
+  }
+  if (offset !== undefined) {
+    query = query.offset(offset);
+  }
+
+  return query;
 }

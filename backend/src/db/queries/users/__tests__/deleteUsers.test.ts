@@ -9,7 +9,7 @@ import {
 
 import type { MockUser } from "../../../../tests/mock-data/users/types";
 import { agent } from "../../../../tests/setup";
-import { deleteUsers, findOneUser } from "..";
+import { deleteUsers, findUser, findUsers } from "..";
 
 describe("db/queries/users/deleteUsers.ts", () => {
   let pedroOliveira: MockUser;
@@ -25,9 +25,10 @@ describe("db/queries/users/deleteUsers.ts", () => {
   });
 
   afterEach(async () => {
-    await deleteUsers({
-      where: { or: [{ id: pedroOliveira.id }, { id: anaCostaAdmin.id }] },
-    });
+    await Promise.all([
+      deleteUsers({ where: { id: pedroOliveira.id } }),
+      deleteUsers({ where: { id: anaCostaAdmin.id } }),
+    ]);
     await agent.seed({
       users: ["pedroOliveira", "anaCostaAdmin"],
     });
@@ -46,14 +47,13 @@ describe("db/queries/users/deleteUsers.ts", () => {
       expect(deleted[0]!.email).toBe(pedroOliveira.email);
 
       // Verify it no longer exists
-      await expect(
-        findOneUser({ where: { id: pedroOliveira.id } }),
-      ).rejects.toThrow("User not found");
+      const remaining = await findUsers({ where: { id: pedroOliveira.id } });
+      expect(remaining).toEqual([]);
     });
 
     test("deletes a user by email", async () => {
       const deleted = await deleteUsers({
-        where: { email: { operator: "eq", value: pedroOliveira.email } },
+        where: { email: pedroOliveira.email },
       });
 
       expect(deleted).toHaveLength(1);
@@ -75,37 +75,14 @@ describe("db/queries/users/deleteUsers.ts", () => {
       expect(deleted[0]!.id).toBe(pedroOliveira.id);
 
       // Verify the other user still exists
-      const remaining = await findOneUser({
-        where: { id: anaCostaAdmin.id },
-        require: false,
-      });
-      expect(remaining).not.toBeNull();
-      expect(remaining!.id).toBe(anaCostaAdmin.id);
-    });
-  });
-
-  describe("strict mode safety", () => {
-    test("throws when and clause is empty", async () => {
-      await expect(
-        // @ts-expect-error Testing invalid where clause
-        deleteUsers({ where: { and: [] } }),
-      ).rejects.toThrow("Strict mode");
+      const remaining = await findUser({ where: { id: anaCostaAdmin.id } });
+      expect(remaining.id).toBe(anaCostaAdmin.id);
     });
 
-    test("throws when or clause is empty", async () => {
-      await expect(
-        // @ts-expect-error Testing invalid where clause
-        deleteUsers({ where: { or: [] } }),
-      ).rejects.toThrow("Strict mode");
-    });
-
-    test("throws when nested clauses resolve to empty", async () => {
-      await expect(
-        deleteUsers({
-          // @ts-expect-error Testing invalid where clause
-          where: { and: [{ or: [] }] },
-        }),
-      ).rejects.toThrow("Strict mode");
+    test("throws when where has no filters", async () => {
+      await expect(deleteUsers({ where: {} })).rejects.toThrow(
+        "At least one where filter must be provided",
+      );
     });
   });
 });

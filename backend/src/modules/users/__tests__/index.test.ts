@@ -7,7 +7,7 @@ import {
   test,
 } from "bun:test";
 
-import { deleteUsers, findOneUser } from "../../../db";
+import { deleteUsers, findUser, findUsers } from "../../../db";
 import { RATE_LIMITS } from "../../../shared/middleware/rateLimit";
 import { createTestApp } from "../../../tests/app";
 import { authHeaders, generateTestAccessTokens } from "../../../tests/auth";
@@ -227,7 +227,7 @@ describe("users/index.ts", () => {
     });
 
     test("returns 200 with the caller's user record when fetching self", async () => {
-      const dbUser = await findOneUser({ where: { id: primaryUser.id } });
+      const dbUser = await findUser({ where: { id: primaryUser.id } });
 
       const { status, body } = await app.handle<UserResponse>(
         new Request(url(primaryUser.id), {
@@ -360,10 +360,7 @@ describe("users/index.ts", () => {
     });
 
     test("successfully deletes user account and returns success", async () => {
-      const userBefore = await findOneUser({
-        where: { id: primaryUser.id },
-        require: false,
-      });
+      const [userBefore] = await findUsers({ where: { id: primaryUser.id } });
       expect(userBefore).toBeDefined();
 
       const { status, body } = await app.handle<SuccessResponse>(
@@ -376,11 +373,8 @@ describe("users/index.ts", () => {
       expect(status).toBe(200);
       expect(body).toEqual({ success: true });
 
-      const userAfter = await findOneUser({
-        where: { id: primaryUser.id },
-        require: false,
-      });
-      expect(userAfter).toBeNull();
+      const userAfter = await findUsers({ where: { id: primaryUser.id } });
+      expect(userAfter).toEqual([]);
 
       await agent.seed({ users: ["carlosSilvaAB"] });
     });
@@ -402,11 +396,10 @@ describe("users/index.ts", () => {
 
     afterAll(async () => {
       disableRateLimitingForTests(originalTrustProxy);
-      await deleteUsers({
-        where: {
-          id: { operator: "in", value: [primaryUser.id, otherUser.id] },
-        },
-      });
+      await Promise.all([
+        deleteUsers({ where: { id: primaryUser.id } }),
+        deleteUsers({ where: { id: otherUser.id } }),
+      ]);
       await agent.seed({ users: ["carlosSilvaAB", "mariaSantosB"] });
     });
 
