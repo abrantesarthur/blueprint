@@ -5,12 +5,14 @@ import {
   beforeEach,
   describe,
   expect,
+  spyOn,
   test,
 } from "bun:test";
 import { Elysia } from "elysia";
 
 import { env } from "../../../../config";
 import { expectRateLimited } from "../../../../tests/helpers/rateLimit";
+import { logger } from "../../../logger";
 import { handleError } from "../../../utils/errors";
 import { ipKeyGenerator } from "../keyGenerators";
 import {
@@ -130,6 +132,41 @@ describe("shared/middleware/rateLimit/plugin.ts", () => {
       );
 
       await expectRateLimitedResponse(response);
+    });
+
+    test("logs a structured warn with the offending IP when blocked", async () => {
+      const warnSpy = spyOn(logger, "warn");
+      try {
+        const ip = uniqueIP("log");
+        const app = createTestApp()
+          .use(
+            scopedRateLimitPlugin({
+              window: 60000,
+              max: 1,
+              keyGenerator: ipKeyGenerator,
+            }),
+          )
+          .get("/test", () => "ok");
+
+        await app.handle(
+          new Request("http://localhost/test", {
+            headers: { "x-forwarded-for": ip },
+          }),
+        );
+        const blocked = await app.handle(
+          new Request("http://localhost/test", {
+            headers: { "x-forwarded-for": ip },
+          }),
+        );
+
+        await expectRateLimitedResponse(blocked);
+        expect(warnSpy).toHaveBeenCalledWith(
+          { path: "/test", clientIp: ip },
+          "rate limit exceeded",
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     test("returns 429 error message when blocked", async () => {
